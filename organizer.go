@@ -52,6 +52,18 @@ func SetupOrganizerRoutes(r *gin.Engine) {
 }
 
 // approveParticipant 審核通過參與者
+// @Summary 審核通過參與者
+// @Description 開局者審核通過指定配對局的參與者
+// @Tags 開局者
+// @Accept json
+// @Produce json
+// @Param id path int true "配對局ID"
+// @Param participant_id path int true "參與者ID"
+// @Success 200 {object} MatchParticipant
+// @Failure 400 {object} map[string]string "無效的配對局 ID 或參與者 ID"
+// @Failure 500 {object} map[string]string "無法審核通過參與者"
+// @Router /organizer/matches/{id}/participants/{participant_id}/approve [put]
+// @Security ApiKeyAuth
 func approveParticipant(c *gin.Context) {
 	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -87,6 +99,18 @@ func approveParticipant(c *gin.Context) {
 }
 
 // rejectParticipant 審核拒絕參與者
+// @Summary 審核拒絕參與者
+// @Description 開局者審核拒絕指定配對局的參與者
+// @Tags 開局者
+// @Accept json
+// @Produce json
+// @Param id path int true "配對局ID"
+// @Param participant_id path int true "參與者ID"
+// @Success 200 {object} MatchParticipant
+// @Failure 400 {object} map[string]string "無效的配對局 ID 或參與者 ID"
+// @Failure 500 {object} map[string]string "無法審核拒絕參與者"
+// @Router /organizer/matches/{id}/participants/{participant_id}/reject [put]
+// @Security ApiKeyAuth
 func rejectParticipant(c *gin.Context) {
 	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {

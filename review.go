@@ -10,6 +10,7 @@ import (
 )
 
 // Review 代表評分與留言
+// @Description 評分與留言資訊
 type Review struct {
 	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	MatchID    int64     `json:"match_id"`
@@ -67,6 +68,18 @@ func SetupReviewRoutes(r *gin.Engine) {
 }
 
 // createReview 建立評分與留言
+// @Summary 建立評分與留言
+// @Description 建立對指定配對局中其他參與者的評分與留言
+// @Tags 評分
+// @Accept json
+// @Produce json
+// @Param id path int true "配對局ID"
+// @Param review body Review true "評分與留言資訊"
+// @Success 201 {object} Review
+// @Failure 400 {object} map[string]string "無效的請求資料或已評分過"
+// @Failure 500 {object} map[string]string "無法建立評分記錄"
+// @Router /review/matches/{id} [post]
+// @Security ApiKeyAuth
 func createReview(c *gin.Context) {
 	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {

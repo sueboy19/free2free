@@ -9,17 +9,19 @@ import (
 )
 
 // Activity 代表配對活動
+// @Description 配對活動資訊
 type Activity struct {
-	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title       string `json:"title"`
-	TargetCount int    `json:"target_count"`
-	LocationID  int64  `json:"location_id"`
-	Description string `json:"description"`
-	CreatedBy   int64  `json:"created_by"`
+	ID          int64    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title       string   `json:"title"`
+	TargetCount int      `json:"target_count"`
+	LocationID  int64    `json:"location_id"`
+	Description string   `json:"description"`
+	CreatedBy   int64    `json:"created_by"`
 	Location    Location `gorm:"foreignKey:LocationID" json:"location"`
 }
 
 // Location 代表地點
+// @Description 地點資訊
 type Location struct {
 	ID        int64   `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string  `json:"name"`
@@ -81,6 +83,15 @@ func SetupAdminRoutes(r *gin.Engine) {
 }
 
 // listActivities 取得配對活動列表
+// @Summary 取得配對活動列表
+// @Description 取得所有配對活動的列表
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Success 200 {array} Activity
+// @Failure 500 {object} map[string]string "無法取得活動列表"
+// @Router /admin/activities [get]
+// @Security ApiKeyAuth
 func listActivities(c *gin.Context) {
 	var activities []Activity
 	if err := adminDB.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
@@ -92,6 +103,17 @@ func listActivities(c *gin.Context) {
 }
 
 // createActivity 建立新的配對活動
+// @Summary 建立新的配對活動
+// @Description 建立新的配對活動
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Param activity body Activity true "配對活動資訊"
+// @Success 201 {object} Activity
+// @Failure 400 {object} map[string]string "無效的請求資料"
+// @Failure 500 {object} map[string]string "無法建立活動"
+// @Router /admin/activities [post]
+// @Security ApiKeyAuth
 func createActivity(c *gin.Context) {
 	var activity Activity
 	if err := c.ShouldBindJSON(&activity); err != nil {
@@ -129,6 +151,18 @@ func createActivity(c *gin.Context) {
 }
 
 // updateActivity 更新配對活動
+// @Summary 更新配對活動
+// @Description 更新指定ID的配對活動
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Param id path int true "活動ID"
+// @Param activity body Activity true "配對活動資訊"
+// @Success 200 {object} Activity
+// @Failure 400 {object} map[string]string "無效的請求資料"
+// @Failure 500 {object} map[string]string "無法更新活動"
+// @Router /admin/activities/{id} [put]
+// @Security ApiKeyAuth
 func updateActivity(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -170,6 +204,17 @@ func updateActivity(c *gin.Context) {
 }
 
 // deleteActivity 刪除配對活動
+// @Summary 刪除配對活動
+// @Description 刪除指定ID的配對活動
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Param id path int true "活動ID"
+// @Success 200 {object} map[string]string "活動已刪除"
+// @Failure 400 {object} map[string]string "無效的活動 ID"
+// @Failure 500 {object} map[string]string "無法刪除活動"
+// @Router /admin/activities/{id} [delete]
+// @Security ApiKeyAuth
 func deleteActivity(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -186,6 +231,15 @@ func deleteActivity(c *gin.Context) {
 }
 
 // listLocations 取得地點列表
+// @Summary 取得地點列表
+// @Description 取得所有地點的列表
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Success 200 {array} Location
+// @Failure 500 {object} map[string]string "無法取得地點列表"
+// @Router /admin/locations [get]
+// @Security ApiKeyAuth
 func listLocations(c *gin.Context) {
 	var locations []Location
 	if err := adminDB.Order("id DESC").Find(&locations).Error; err != nil {
@@ -197,6 +251,17 @@ func listLocations(c *gin.Context) {
 }
 
 // createLocation 建立新的地點
+// @Summary 建立新的地點
+// @Description 建立新的地點
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Param location body Location true "地點資訊"
+// @Success 201 {object} Location
+// @Failure 400 {object} map[string]string "無效的請求資料"
+// @Failure 500 {object} map[string]string "無法建立地點"
+// @Router /admin/locations [post]
+// @Security ApiKeyAuth
 func createLocation(c *gin.Context) {
 	var location Location
 	if err := c.ShouldBindJSON(&location); err != nil {
@@ -219,6 +284,18 @@ func createLocation(c *gin.Context) {
 }
 
 // updateLocation 更新地點
+// @Summary 更新地點
+// @Description 更新指定ID的地點
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Param id path int true "地點ID"
+// @Param location body Location true "地點資訊"
+// @Success 200 {object} Location
+// @Failure 400 {object} map[string]string "無效的請求資料"
+// @Failure 500 {object} map[string]string "無法更新地點"
+// @Router /admin/locations/{id} [put]
+// @Security ApiKeyAuth
 func updateLocation(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -249,6 +326,17 @@ func updateLocation(c *gin.Context) {
 }
 
 // deleteLocation 刪除地點
+// @Summary 刪除地點
+// @Description 刪除指定ID的地點
+// @Tags 管理員
+// @Accept json
+// @Produce json
+// @Param id path int true "地點ID"
+// @Success 200 {object} map[string]string "地點已刪除"
+// @Failure 400 {object} map[string]string "無效的地點 ID"
+// @Failure 500 {object} map[string]string "無法刪除地點"
+// @Router /admin/locations/{id} [delete]
+// @Security ApiKeyAuth
 func deleteLocation(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {

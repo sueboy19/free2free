@@ -9,11 +9,12 @@ import (
 )
 
 // ReviewLike 代表評論點讚/倒讚
+// @Description 評論點讚/倒讚資訊
 type ReviewLike struct {
-	ID       int64 `gorm:"primaryKey;autoIncrement" json:"id"`
-	ReviewID int64 `json:"review_id"`
-	UserID   int64 `json:"user_id"`
-	IsLike   bool  `json:"is_like"` // true: 點讚, false: 倒讚
+	ID       int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	ReviewID int64  `json:"review_id"`
+	UserID   int64  `json:"user_id"`
+	IsLike   bool   `json:"is_like"` // true: 點讚, false: 倒讚
 	Review   Review `gorm:"foreignKey:ReviewID" json:"review"`
 	User     User   `gorm:"foreignKey:UserID" json:"user"`
 }
@@ -32,6 +33,17 @@ func SetupReviewLikeRoutes(r *gin.Engine) {
 }
 
 // likeReview 點讚評論
+// @Summary 點讚評論
+// @Description 對指定ID的評論進行點讚
+// @Tags 評論
+// @Accept json
+// @Produce json
+// @Param id path int true "評論ID"
+// @Success 201 {object} ReviewLike
+// @Failure 400 {object} map[string]string "無效的評論 ID 或已點讚"
+// @Failure 500 {object} map[string]string "無法點讚評論"
+// @Router /review-like/reviews/{id}/like [post]
+// @Security ApiKeyAuth
 func likeReview(c *gin.Context) {
 	reviewID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -97,6 +109,17 @@ func likeReview(c *gin.Context) {
 }
 
 // dislikeReview 倒讚評論
+// @Summary 倒讚評論
+// @Description 對指定ID的評論進行倒讚
+// @Tags 評論
+// @Accept json
+// @Produce json
+// @Param id path int true "評論ID"
+// @Success 201 {object} ReviewLike
+// @Failure 400 {object} map[string]string "無效的評論 ID 或已倒讚"
+// @Failure 500 {object} map[string]string "無法倒讚評論"
+// @Router /review-like/reviews/{id}/dislike [post]
+// @Security ApiKeyAuth
 func dislikeReview(c *gin.Context) {
 	reviewID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {

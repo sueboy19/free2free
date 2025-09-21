@@ -10,6 +10,7 @@ import (
 )
 
 // Match 代表配對局
+// @Description 配對局資訊
 type Match struct {
 	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	ActivityID int64     `json:"activity_id"`
@@ -21,6 +22,7 @@ type Match struct {
 }
 
 // MatchParticipant 代表配對參與者
+// @Description 配對參與者資訊
 type MatchParticipant struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	MatchID   int64     `json:"match_id"`
@@ -77,6 +79,15 @@ func SetupUserRoutes(r *gin.Engine) {
 }
 
 // listMatches 取得時間未到的配對列表
+// @Summary 取得時間未到的配對列表
+// @Description 取得所有時間未到且狀態為open的配對列表
+// @Tags 使用者
+// @Accept json
+// @Produce json
+// @Success 200 {array} Match
+// @Failure 500 {object} map[string]string "無法取得配對列表"
+// @Router /user/matches [get]
+// @Security ApiKeyAuth
 func listMatches(c *gin.Context) {
 	var matches []Match
 	// 只顯示狀態為 open 且時間未到的配對
@@ -89,6 +100,17 @@ func listMatches(c *gin.Context) {
 }
 
 // createMatch 建立新的配對局 (開局)
+// @Summary 建立新的配對局
+// @Description 建立新的配對局 (開局)
+// @Tags 使用者
+// @Accept json
+// @Produce json
+// @Param match body Match true "配對局資訊"
+// @Success 201 {object} Match
+// @Failure 400 {object} map[string]string "無效的請求資料"
+// @Failure 500 {object} map[string]string "無法建立配對局"
+// @Router /user/matches [post]
+// @Security ApiKeyAuth
 func createMatch(c *gin.Context) {
 	var match Match
 	if err := c.ShouldBindJSON(&match); err != nil {
@@ -129,6 +151,17 @@ func createMatch(c *gin.Context) {
 }
 
 // joinMatch 參與配對
+// @Summary 參與配對
+// @Description 參與指定ID的配對局
+// @Tags 使用者
+// @Accept json
+// @Produce json
+// @Param id path int true "配對局ID"
+// @Success 201 {object} MatchParticipant
+// @Failure 400 {object} map[string]string "無效的配對局 ID 或已參與"
+// @Failure 500 {object} map[string]string "無法參與配對局"
+// @Router /user/matches/{id}/join [post]
+// @Security ApiKeyAuth
 func joinMatch(c *gin.Context) {
 	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -184,6 +217,15 @@ func joinMatch(c *gin.Context) {
 }
 
 // listPastMatches 取得過去參與的配對列表
+// @Summary 取得過去參與的配對列表
+// @Description 取得該使用者參與過的已完成的配對局列表
+// @Tags 使用者
+// @Accept json
+// @Produce json
+// @Success 200 {array} Match
+// @Failure 500 {object} map[string]string "無法取得過去參與的配對列表"
+// @Router /user/past-matches [get]
+// @Security ApiKeyAuth
 func listPastMatches(c *gin.Context) {
 	// 這裡應該從 session 或 token 取得使用者 ID
 	// 為了簡化，這裡暫時設為 1

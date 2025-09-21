@@ -53,9 +53,10 @@ func init() {
 
 	// 初始化資料庫連線
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(localhost:3306)/%s?parseTime=true",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true",
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
 		os.Getenv("DB_NAME"))
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -196,12 +197,29 @@ func sessionsMiddleware() gin.HandlerFunc {
 }
 
 // oauthBegin 開始 OAuth 流程
+// @Summary 開始 OAuth 流程
+// @Description 開始 Facebook 或 Instagram OAuth 流程
+// @Tags 認證
+// @Accept json
+// @Produce json
+// @Param provider path string true "OAuth 提供者 (facebook 或 instagram)"
+// @Success 302 {string} string "重定向到 OAuth 提供者"
+// @Router /auth/{provider} [get]
 func oauthBegin(c *gin.Context) {
 	// 使用 gothic 來處理 OAuth 流程
 	gothic.BeginAuthHandler(c.Writer, c.Request)
 }
 
 // oauthCallback OAuth 回調處理
+// @Summary OAuth 回調處理
+// @Description 處理 OAuth 提供者的回調
+// @Tags 認證
+// @Accept json
+// @Produce json
+// @Param provider path string true "OAuth 提供者 (facebook 或 instagram)"
+// @Success 302 {string} string "重定向到首頁"
+// @Failure 500 {object} map[string]string "OAuth 回調錯誤"
+// @Router /auth/{provider}/callback [get]
 func oauthCallback(c *gin.Context) {
 	// 使用 gothic 取得使用者資訊
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
@@ -228,6 +246,13 @@ func oauthCallback(c *gin.Context) {
 }
 
 // logout 處理登出
+// @Summary 處理登出
+// @Description 登出使用者並清除 session
+// @Tags 認證
+// @Accept json
+// @Produce json
+// @Success 302 {string} string "重定向到首頁"
+// @Router /logout [get]
 func logout(c *gin.Context) {
 	session := c.MustGet("session").(*sessions.Session)
 	session.Options.MaxAge = -1 // 刪除 session

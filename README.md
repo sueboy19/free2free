@@ -105,4 +105,3 @@ http://localhost:8080/swagger/index.html
 4. 開發新功能時請參考 `analysis_worklist.md` 的工作列表
 5. 遵循 `security_design.md` 中的安全規範
 6. 如需進行 OAuth 測試，請參考 `VSCODE.md` 中的反向代理設定說明
-6. 如需進行 OAuth 測試，請參考 `VSCODE.md` 中的反向代理設定說明
