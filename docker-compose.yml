@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mariadb:latest
+    container_name: free2free-mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: free2free
+      MYSQL_USER: free2free_user
+      MYSQL_PASSWORD: free2free_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:

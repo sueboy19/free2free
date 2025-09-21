@@ -1,19 +1,21 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // ReviewLike 代表評論點讚/倒讚
 type ReviewLike struct {
-	ID       int64 `db:"id" json:"id"`
-	ReviewID int64 `db:"review_id" json:"review_id"`
-	UserID   int64 `db:"user_id" json:"user_id"`
-	IsLike   bool  `db:"is_like" json:"is_like"` // true: 點讚, false: 倒讚
+	ID       int64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	ReviewID int64 `json:"review_id"`
+	UserID   int64 `json:"user_id"`
+	IsLike   bool  `json:"is_like"` // true: 點讚, false: 倒讚
+	Review   Review `gorm:"foreignKey:ReviewID" json:"review"`
+	User     User   `gorm:"foreignKey:UserID" json:"user"`
 }
 
 // SetupReviewLikeRoutes 設定評論點讚/倒讚路由
@@ -43,10 +45,8 @@ func likeReview(c *gin.Context) {
 
 	// 檢查評論是否存在
 	var review Review
-	err = db.QueryRow("SELECT id, match_id, reviewer_id, reviewee_id, score, comment, created_at FROM reviews WHERE id = ?", reviewID).
-		Scan(&review.ID, &review.MatchID, &review.ReviewerID, &review.RevieweeID, &review.Score, &review.Comment, &review.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.First(&review, reviewID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的評論不存在"})
 			return
 		}
@@ -56,23 +56,21 @@ func likeReview(c *gin.Context) {
 
 	// 檢查使用者是否已經對此評論點讚或倒讚
 	var existingLike ReviewLike
-	err = db.QueryRow("SELECT id, review_id, user_id, is_like FROM review_likes WHERE user_id = ? AND review_id = ?", userID, reviewID).
-		Scan(&existingLike.ID, &existingLike.ReviewID, &existingLike.UserID, &existingLike.IsLike)
-	if err != nil && err != sql.ErrNoRows {
+	err = db.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查點讚狀態"})
 		return
 	}
 
 	// 如果已經點讚，返回錯誤
-	if err != sql.ErrNoRows && existingLike.IsLike {
+	if err == nil && existingLike.IsLike {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "您已經點讚此評論"})
 		return
 	}
 
 	// 如果已經倒讚，則更新為點讚
-	if err != sql.ErrNoRows && !existingLike.IsLike {
-		_, err = db.Exec("UPDATE review_likes SET is_like = true WHERE id = ?", existingLike.ID)
-		if err != nil {
+	if err == nil && !existingLike.IsLike {
+		if err := db.Model(&existingLike).Update("is_like", true).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新點讚狀態"})
 			return
 		}
@@ -82,25 +80,19 @@ func likeReview(c *gin.Context) {
 	}
 
 	// 建立新的點讚記錄
-	result, err := db.Exec("INSERT INTO review_likes (review_id, user_id, is_like) VALUES (?, ?, true)", reviewID, userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法點讚評論"})
-		return
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得點讚記錄 ID"})
-		return
-	}
-
 	reviewLike := ReviewLike{
-		ID:       id,
 		ReviewID: reviewID,
 		UserID:   userID,
 		IsLike:   true,
 	}
 
+	if err := db.Create(&reviewLike).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法點讚評論"})
+		return
+	}
+
+	// 預加載關聯資料
+	db.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
 	c.JSON(http.StatusCreated, reviewLike)
 }
 
@@ -118,10 +110,8 @@ func dislikeReview(c *gin.Context) {
 
 	// 檢查評論是否存在
 	var review Review
-	err = db.QueryRow("SELECT id, match_id, reviewer_id, reviewee_id, score, comment, created_at FROM reviews WHERE id = ?", reviewID).
-		Scan(&review.ID, &review.MatchID, &review.ReviewerID, &review.RevieweeID, &review.Score, &review.Comment, &review.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.First(&review, reviewID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的評論不存在"})
 			return
 		}
@@ -131,23 +121,21 @@ func dislikeReview(c *gin.Context) {
 
 	// 檢查使用者是否已經對此評論點讚或倒讚
 	var existingLike ReviewLike
-	err = db.QueryRow("SELECT id, review_id, user_id, is_like FROM review_likes WHERE user_id = ? AND review_id = ?", userID, reviewID).
-		Scan(&existingLike.ID, &existingLike.ReviewID, &existingLike.UserID, &existingLike.IsLike)
-	if err != nil && err != sql.ErrNoRows {
+	err = db.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查點讚狀態"})
 		return
 	}
 
 	// 如果已經倒讚，返回錯誤
-	if err != sql.ErrNoRows && !existingLike.IsLike {
+	if err == nil && !existingLike.IsLike {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "您已經倒讚此評論"})
 		return
 	}
 
 	// 如果已經點讚，則更新為倒讚
-	if err != sql.ErrNoRows && existingLike.IsLike {
-		_, err = db.Exec("UPDATE review_likes SET is_like = false WHERE id = ?", existingLike.ID)
-		if err != nil {
+	if err == nil && existingLike.IsLike {
+		if err := db.Model(&existingLike).Update("is_like", false).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新點讚狀態"})
 			return
 		}
@@ -157,24 +145,18 @@ func dislikeReview(c *gin.Context) {
 	}
 
 	// 建立新的倒讚記錄
-	result, err := db.Exec("INSERT INTO review_likes (review_id, user_id, is_like) VALUES (?, ?, false)", reviewID, userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法倒讚評論"})
-		return
-	}
-
-	id, err := result.LastInsertId()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得倒讚記錄 ID"})
-		return
-	}
-
 	reviewLike := ReviewLike{
-		ID:       id,
 		ReviewID: reviewID,
 		UserID:   userID,
 		IsLike:   false,
 	}
 
+	if err := db.Create(&reviewLike).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法倒讚評論"})
+		return
+	}
+
+	// 預加載關聯資料
+	db.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
 	c.JSON(http.StatusCreated, reviewLike)
 }

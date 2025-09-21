@@ -1,37 +1,38 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // Activity 代表配對活動
 type Activity struct {
-	ID          int64  `db:"id" json:"id"`
-	Title       string `db:"title" json:"title"`
-	TargetCount int    `db:"target_count" json:"target_count"`
-	LocationID  int64  `db:"location_id" json:"location_id"`
-	Description string `db:"description" json:"description"`
-	CreatedBy   int64  `db:"created_by" json:"created_by"`
+	ID          int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title       string `json:"title"`
+	TargetCount int    `json:"target_count"`
+	LocationID  int64  `json:"location_id"`
+	Description string `json:"description"`
+	CreatedBy   int64  `json:"created_by"`
+	Location    Location `gorm:"foreignKey:LocationID" json:"location"`
 }
 
 // Location 代表地點
 type Location struct {
-	ID        int64   `db:"id" json:"id"`
-	Name      string  `db:"name" json:"name"`
-	Address   string  `db:"address" json:"address"`
-	Latitude  float64 `db:"latitude" json:"latitude"`
-	Longitude float64 `db:"longitude" json:"longitude"`
+	ID        int64   `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name      string  `json:"name"`
+	Address   string  `json:"address"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
 }
 
 // Admin 代表管理員
 type Admin struct {
-	ID       int64  `db:"id" json:"id"`
-	Username string `db:"username" json:"username"`
-	Email    string `db:"email" json:"email"`
+	ID       int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Username string `gorm:"unique" json:"username"`
+	Email    string `gorm:"unique" json:"email"`
 }
 
 // AdminAuthMiddleware 管理員認證中介層
@@ -82,20 +83,9 @@ func SetupAdminRoutes(r *gin.Engine) {
 // listActivities 取得配對活動列表
 func listActivities(c *gin.Context) {
 	var activities []Activity
-	rows, err := db.Query("SELECT id, title, target_count, location_id, description, created_by FROM activities ORDER BY id DESC")
-	if err != nil {
+	if err := db.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得活動列表"})
 		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var activity Activity
-		if err := rows.Scan(&activity.ID, &activity.Title, &activity.TargetCount, &activity.LocationID, &activity.Description, &activity.CreatedBy); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法解析活動資料"})
-			return
-		}
-		activities = append(activities, activity)
 	}
 
 	c.JSON(http.StatusOK, activities)
@@ -117,10 +107,8 @@ func createActivity(c *gin.Context) {
 
 	// 檢查地點是否存在
 	var location Location
-	err := db.QueryRow("SELECT id, name, address, latitude, longitude FROM locations WHERE id = ?", activity.LocationID).
-		Scan(&location.ID, &location.Name, &location.Address, &location.Latitude, &location.Longitude)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.First(&location, activity.LocationID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的地點不存在"})
 			return
 		}
@@ -132,20 +120,11 @@ func createActivity(c *gin.Context) {
 	// 為了簡化，這裡暫時設為 1
 	activity.CreatedBy = 1
 
-	result, err := db.Exec("INSERT INTO activities (title, target_count, location_id, description, created_by) VALUES (?, ?, ?, ?, ?)",
-		activity.Title, activity.TargetCount, activity.LocationID, activity.Description, activity.CreatedBy)
-	if err != nil {
+	if err := db.Create(&activity).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立活動"})
 		return
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得新活動 ID"})
-		return
-	}
-
-	activity.ID = id
 	c.JSON(http.StatusCreated, activity)
 }
 
@@ -171,10 +150,8 @@ func updateActivity(c *gin.Context) {
 
 	// 檢查地點是否存在
 	var location Location
-	err = db.QueryRow("SELECT id, name, address, latitude, longitude FROM locations WHERE id = ?", activity.LocationID).
-		Scan(&location.ID, &location.Name, &location.Address, &location.Latitude, &location.Longitude)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.First(&location, activity.LocationID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的地點不存在"})
 			return
 		}
@@ -183,9 +160,7 @@ func updateActivity(c *gin.Context) {
 	}
 
 	// 更新活動
-	_, err = db.Exec("UPDATE activities SET title = ?, target_count = ?, location_id = ?, description = ? WHERE id = ?",
-		activity.Title, activity.TargetCount, activity.LocationID, activity.Description, id)
-	if err != nil {
+	if err := db.Model(&Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新活動"})
 		return
 	}
@@ -202,8 +177,7 @@ func deleteActivity(c *gin.Context) {
 		return
 	}
 
-	_, err = db.Exec("DELETE FROM activities WHERE id = ?", id)
-	if err != nil {
+	if err := db.Delete(&Activity{}, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法刪除活動"})
 		return
 	}
@@ -214,20 +188,9 @@ func deleteActivity(c *gin.Context) {
 // listLocations 取得地點列表
 func listLocations(c *gin.Context) {
 	var locations []Location
-	rows, err := db.Query("SELECT id, name, address, latitude, longitude FROM locations ORDER BY id DESC")
-	if err != nil {
+	if err := db.Order("id DESC").Find(&locations).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得地點列表"})
 		return
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var location Location
-		if err := rows.Scan(&location.ID, &location.Name, &location.Address, &location.Latitude, &location.Longitude); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法解析地點資料"})
-			return
-		}
-		locations = append(locations, location)
 	}
 
 	c.JSON(http.StatusOK, locations)
@@ -247,20 +210,11 @@ func createLocation(c *gin.Context) {
 		return
 	}
 
-	result, err := db.Exec("INSERT INTO locations (name, address, latitude, longitude) VALUES (?, ?, ?, ?)",
-		location.Name, location.Address, location.Latitude, location.Longitude)
-	if err != nil {
+	if err := db.Create(&location).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立地點"})
 		return
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得新地點 ID"})
-		return
-	}
-
-	location.ID = id
 	c.JSON(http.StatusCreated, location)
 }
 
@@ -285,9 +239,7 @@ func updateLocation(c *gin.Context) {
 	}
 
 	// 更新地點
-	_, err = db.Exec("UPDATE locations SET name = ?, address = ?, latitude = ?, longitude = ? WHERE id = ?",
-		location.Name, location.Address, location.Latitude, location.Longitude, id)
-	if err != nil {
+	if err := db.Model(&Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新地點"})
 		return
 	}
@@ -304,8 +256,7 @@ func deleteLocation(c *gin.Context) {
 		return
 	}
 
-	_, err = db.Exec("DELETE FROM locations WHERE id = ?", id)
-	if err != nil {
+	if err := db.Delete(&Location{}, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法刪除地點"})
 		return
 	}

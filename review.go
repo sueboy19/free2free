@@ -1,23 +1,26 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // Review 代表評分與留言
 type Review struct {
-	ID         int64     `db:"id" json:"id"`
-	MatchID    int64     `db:"match_id" json:"match_id"`
-	ReviewerID int64     `db:"reviewer_id" json:"reviewer_id"`
-	RevieweeID int64     `db:"reviewee_id" json:"reviewee_id"`
-	Score      int       `db:"score" json:"score"` // 3-5分
-	Comment    string    `db:"comment" json:"comment"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	MatchID    int64     `json:"match_id"`
+	ReviewerID int64     `json:"reviewer_id"`
+	RevieweeID int64     `json:"reviewee_id"`
+	Score      int       `json:"score"` // 3-5分
+	Comment    string    `json:"comment"`
+	CreatedAt  time.Time `json:"created_at"`
+	Match      Match     `gorm:"foreignKey:MatchID" json:"match"`
+	Reviewer   User      `gorm:"foreignKey:ReviewerID" json:"reviewer"`
+	Reviewee   User      `gorm:"foreignKey:RevieweeID" json:"reviewee"`
 }
 
 // ReviewAuthMiddleware 評分認證中介層
@@ -91,34 +94,26 @@ func createReview(c *gin.Context) {
 
 	// 檢查是否已經對此人在此配對局評分過
 	var existingReview Review
-	err = db.QueryRow("SELECT id, match_id, reviewer_id, reviewee_id, score, comment, created_at FROM reviews WHERE reviewer_id = ? AND reviewee_id = ? AND match_id = ?",
-		review.ReviewerID, review.RevieweeID, review.MatchID).
-		Scan(&existingReview.ID, &existingReview.MatchID, &existingReview.ReviewerID, &existingReview.RevieweeID, &existingReview.Score, &existingReview.Comment, &existingReview.CreatedAt)
-	if err != nil && err != sql.ErrNoRows {
+	err = db.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?", 
+		review.ReviewerID, review.RevieweeID, review.MatchID).First(&existingReview).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查評分記錄"})
 		return
 	}
 
 	// 如果已經評分過，返回錯誤
-	if err != sql.ErrNoRows {
+	if err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "您已經對此人評分過"})
 		return
 	}
 
 	// 建立新的評分記錄
-	result, err := db.Exec("INSERT INTO reviews (match_id, reviewer_id, reviewee_id, score, comment, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		review.MatchID, review.ReviewerID, review.RevieweeID, review.Score, review.Comment, review.CreatedAt)
-	if err != nil {
+	if err := db.Create(&review).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立評分記錄"})
 		return
 	}
 
-	id, err := result.LastInsertId()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得評分記錄 ID"})
-		return
-	}
-
-	review.ID = id
+	// 預加載關聯資料
+	db.Preload("Match").Preload("Reviewer").Preload("Reviewee").First(&review, review.ID)
 	c.JSON(http.StatusCreated, review)
 }

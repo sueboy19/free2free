@@ -19,9 +19,14 @@ Dev Container 設定中已包含環境變數的範本，請在 `.devcontainer/de
 
 ### 執行步驟
 1. 開啟 VS Code
-2. 按下 `Ctrl+Shift+D` 開啟 Run and Debug 面板
-3. 選擇 "Launch Package" 設定
-4. 按下 "Start Debugging" 按鈕 (綠色箭頭) 或按下 F5
+2. 使用 Docker Compose 啟動資料庫：
+   ```bash
+   docker-compose up -d
+   ```
+3. 等待資料庫啟動完成
+4. 按下 `Ctrl+Shift+D` 開啟 Run and Debug 面板
+5. 選擇 "Launch Package" 設定
+6. 按下 "Start Debugging" 按鈕 (綠色箭頭) 或按下 F5
 
 ### 環境變數設定
 launch.json 設定中已包含環境變數的範本，請在 `.vscode/launch.json` 中設定實際的值。

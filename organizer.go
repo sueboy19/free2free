@@ -1,11 +1,11 @@
 package main
 
 import (
-	"database/sql"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // OrganizerAuthMiddleware 開局者認證中介層
@@ -67,10 +67,8 @@ func approveParticipant(c *gin.Context) {
 
 	// 檢查參與者是否屬於此配對局
 	var participant MatchParticipant
-	err = db.QueryRow("SELECT id, match_id, user_id, status, joined_at FROM match_participants WHERE id = ? AND match_id = ?", participantID, matchID).
-		Scan(&participant.ID, &participant.MatchID, &participant.UserID, &participant.Status, &participant.JoinedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的參與者不存在或不屬於此配對局"})
 			return
 		}
@@ -79,8 +77,7 @@ func approveParticipant(c *gin.Context) {
 	}
 
 	// 更新參與者狀態為 approved
-	_, err = db.Exec("UPDATE match_participants SET status = 'approved' WHERE id = ?", participantID)
-	if err != nil {
+	if err := db.Model(&participant).Update("status", "approved").Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法審核通過參與者"})
 		return
 	}
@@ -105,10 +102,8 @@ func rejectParticipant(c *gin.Context) {
 
 	// 檢查參與者是否屬於此配對局
 	var participant MatchParticipant
-	err = db.QueryRow("SELECT id, match_id, user_id, status, joined_at FROM match_participants WHERE id = ? AND match_id = ?", participantID, matchID).
-		Scan(&participant.ID, &participant.MatchID, &participant.UserID, &participant.Status, &participant.JoinedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的參與者不存在或不屬於此配對局"})
 			return
 		}
@@ -117,8 +112,7 @@ func rejectParticipant(c *gin.Context) {
 	}
 
 	// 更新參與者狀態為 rejected
-	_, err = db.Exec("UPDATE match_participants SET status = 'rejected' WHERE id = ?", participantID)
-	if err != nil {
+	if err := db.Model(&participant).Update("status", "rejected").Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法審核拒絕參與者"})
 		return
 	}

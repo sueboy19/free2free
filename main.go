@@ -1,35 +1,36 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/facebook"
 	"github.com/markbates/goth/providers/instagram"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 // User 代表使用者資料結構
 type User struct {
-	ID             int64  `db:"id"`
-	SocialID       string `db:"social_id"`
-	SocialProvider string `db:"social_provider"`
-	Name           string `db:"name"`
-	Email          string `db:"email"`
-	AvatarURL      string `db:"avatar_url"`
+	ID             int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	SocialID       string `gorm:"uniqueIndex:social_provider" json:"social_id"`
+	SocialProvider string `gorm:"uniqueIndex:social_provider" json:"social_provider"`
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	AvatarURL      string `json:"avatar_url"`
+	CreatedAt      int64  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      int64  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 var (
-	db *sql.DB
-	// 使用 Gorilla Sessions 管理 session
+	db    *gorm.DB
 	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 )
 
@@ -39,21 +40,30 @@ func init() {
 		log.Println("無法載入 .env 檔案，使用環境變數")
 	}
 
-	mode := os.Getenv("GIN_MODE")
-	gin.SetMode(mode)
-
 	// 初始化資料庫連線
 	var err error
-	db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@/%s?parseTime=true",
+	dsn := fmt.Sprintf("%s:%s@tcp(localhost:3306)/%s?parseTime=true",
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME")))
+		os.Getenv("DB_NAME"))
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("資料庫連線失敗:", err)
 	}
 
-	if err := db.Ping(); err != nil {
-		log.Fatal("无法连接到数据库:", err)
+	// 自動遷移所有資料表
+	err = db.AutoMigrate(
+		&User{},
+		&Admin{},
+		&Location{},
+		&Activity{},
+		&Match{},
+		&MatchParticipant{},
+		&Review{},
+		&ReviewLike{},
+	)
+	if err != nil {
+		log.Fatal("資料表遷移失敗:", err)
 	}
 
 	// 設定 OAuth 提供者
@@ -173,8 +183,7 @@ func profile(c *gin.Context) {
 
 	// 從資料庫取得使用者資訊
 	var user User
-	err := db.QueryRow("SELECT id, social_id, social_provider, name, email, avatar_url FROM users WHERE id = ?", userID).
-		Scan(&user.ID, &user.SocialID, &user.SocialProvider, &user.Name, &user.Email, &user.AvatarURL)
+	err := db.First(&user, userID).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得使用者資訊"})
 		return
@@ -188,46 +197,36 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 	var user User
 
 	// 檢查使用者是否已存在
-	err := db.QueryRow("SELECT id, social_id, social_provider, name, email, avatar_url FROM users WHERE social_id = ? AND social_provider = ?",
-		gothUser.UserID, gothUser.Provider).Scan(&user.ID, &user.SocialID, &user.SocialProvider, &user.Name, &user.Email, &user.AvatarURL)
+	err := db.Where("social_id = ? AND social_provider = ?", gothUser.UserID, gothUser.Provider).First(&user).Error
 
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		// 查詢出錯
 		return nil, err
 	}
 
-	if err == sql.ErrNoRows {
+	if err == gorm.ErrRecordNotFound {
 		// 使用者不存在，建立新使用者
-		result, err := db.Exec("INSERT INTO users (social_id, social_provider, name, email, avatar_url) VALUES (?, ?, ?, ?, ?)",
-			gothUser.UserID, gothUser.Provider, gothUser.Name, gothUser.Email, gothUser.AvatarURL)
-		if err != nil {
-			return nil, err
-		}
-
-		id, err := result.LastInsertId()
-		if err != nil {
-			return nil, err
-		}
-
 		user = User{
-			ID:             id,
 			SocialID:       gothUser.UserID,
 			SocialProvider: gothUser.Provider,
 			Name:           gothUser.Name,
 			Email:          gothUser.Email,
 			AvatarURL:      gothUser.AvatarURL,
 		}
-	} else {
-		// 使用者已存在，更新資訊
-		_, err := db.Exec("UPDATE users SET name = ?, email = ?, avatar_url = ? WHERE id = ?",
-			gothUser.Name, gothUser.Email, gothUser.AvatarURL, user.ID)
-		if err != nil {
+
+		// 儲存新使用者
+		if err := db.Create(&user).Error; err != nil {
 			return nil, err
 		}
-
+	} else {
+		// 使用者已存在，更新資訊
 		user.Name = gothUser.Name
 		user.Email = gothUser.Email
 		user.AvatarURL = gothUser.AvatarURL
+
+		if err := db.Save(&user).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	return &user, nil

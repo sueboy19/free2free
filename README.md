@@ -11,8 +11,8 @@
 - 評論可點讚或倒讚
 
 ## 技術架構
-- 後端：Go + Gin 框架
-- 資料庫：MySQL
+- 後端：Go 1.25 + Gin 框架
+- 資料庫：MariaDB (透過 Docker) + GORM
 - OAuth 認證：Goth 套件
 - Session 管理：Gorilla Sessions
 
@@ -36,7 +36,23 @@ cp .env.example .env
 ```
 
 ### 資料庫設定
-請參考 `database_design.md` 建立資料表。
+本專案使用 Docker Compose 來建立 MariaDB 資料庫環境，並使用 GORM 進行自動遷移。
+
+#### 使用 Docker Compose 建立資料庫
+1. 確保已安裝 Docker 和 Docker Compose
+2. 在專案根目錄執行以下命令啟動資料庫：
+   ```bash
+   docker-compose up -d
+   ```
+3. 資料庫將在埠 3306 上運行
+4. 資料庫名稱: `free2free`
+5. 使用者名稱: `free2free_user`
+6. 密碼: `free2free_password`
+
+GORM 會在應用程式啟動時自動建立所需的資料表結構，無需手動執行 SQL 語句。
+
+#### 手動建立資料庫 (可選)
+如果您不想使用 Docker，也可以手動建立 MariaDB 資料庫，應用程式啟動時會自動建立資料表結構。
 
 ### 安裝相依套件
 ```bash
