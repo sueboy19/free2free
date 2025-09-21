@@ -45,7 +45,7 @@ func likeReview(c *gin.Context) {
 
 	// 檢查評論是否存在
 	var review Review
-	if err := db.First(&review, reviewID).Error; err != nil {
+	if err := reviewLikeDB.First(&review, reviewID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的評論不存在"})
 			return
@@ -56,7 +56,7 @@ func likeReview(c *gin.Context) {
 
 	// 檢查使用者是否已經對此評論點讚或倒讚
 	var existingLike ReviewLike
-	err = db.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
+	err = reviewLikeDB.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查點讚狀態"})
 		return
@@ -70,7 +70,7 @@ func likeReview(c *gin.Context) {
 
 	// 如果已經倒讚，則更新為點讚
 	if err == nil && !existingLike.IsLike {
-		if err := db.Model(&existingLike).Update("is_like", true).Error; err != nil {
+		if err := reviewLikeDB.Model(&existingLike).Update("is_like", true).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新點讚狀態"})
 			return
 		}
@@ -86,13 +86,13 @@ func likeReview(c *gin.Context) {
 		IsLike:   true,
 	}
 
-	if err := db.Create(&reviewLike).Error; err != nil {
+	if err := reviewLikeDB.Create(&reviewLike).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法點讚評論"})
 		return
 	}
 
 	// 預加載關聯資料
-	db.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
+	reviewLikeDB.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
 	c.JSON(http.StatusCreated, reviewLike)
 }
 
@@ -110,7 +110,7 @@ func dislikeReview(c *gin.Context) {
 
 	// 檢查評論是否存在
 	var review Review
-	if err := db.First(&review, reviewID).Error; err != nil {
+	if err := reviewLikeDB.First(&review, reviewID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的評論不存在"})
 			return
@@ -121,7 +121,7 @@ func dislikeReview(c *gin.Context) {
 
 	// 檢查使用者是否已經對此評論點讚或倒讚
 	var existingLike ReviewLike
-	err = db.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
+	err = reviewLikeDB.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查點讚狀態"})
 		return
@@ -135,7 +135,7 @@ func dislikeReview(c *gin.Context) {
 
 	// 如果已經點讚，則更新為倒讚
 	if err == nil && existingLike.IsLike {
-		if err := db.Model(&existingLike).Update("is_like", false).Error; err != nil {
+		if err := reviewLikeDB.Model(&existingLike).Update("is_like", false).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新點讚狀態"})
 			return
 		}
@@ -151,12 +151,12 @@ func dislikeReview(c *gin.Context) {
 		IsLike:   false,
 	}
 
-	if err := db.Create(&reviewLike).Error; err != nil {
+	if err := reviewLikeDB.Create(&reviewLike).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法倒讚評論"})
 		return
 	}
 
 	// 預加載關聯資料
-	db.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
+	reviewLikeDB.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
 	c.JSON(http.StatusCreated, reviewLike)
 }

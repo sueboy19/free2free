@@ -94,7 +94,7 @@ func createReview(c *gin.Context) {
 
 	// 檢查是否已經對此人在此配對局評分過
 	var existingReview Review
-	err = db.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?", 
+	err = reviewDB.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?", 
 		review.ReviewerID, review.RevieweeID, review.MatchID).First(&existingReview).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查評分記錄"})
@@ -108,12 +108,12 @@ func createReview(c *gin.Context) {
 	}
 
 	// 建立新的評分記錄
-	if err := db.Create(&review).Error; err != nil {
+	if err := reviewDB.Create(&review).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立評分記錄"})
 		return
 	}
 
 	// 預加載關聯資料
-	db.Preload("Match").Preload("Reviewer").Preload("Reviewee").First(&review, review.ID)
+	reviewDB.Preload("Match").Preload("Reviewer").Preload("Reviewee").First(&review, review.ID)
 	c.JSON(http.StatusCreated, review)
 }

@@ -61,7 +61,17 @@ go mod tidy
 
 ### 執行應用程式
 ```bash
+# 普通運行
 go run .
+
+# 使用air進行開發（支持熱重載）
+air
+
+# 或者直接運行編譯後的程序
+go build
+./free2free.exe  # Windows
+# 或者
+./free2free      # Linux/Mac
 ```
 
 ## API 端點
@@ -82,10 +92,17 @@ go run .
 - `security_design.md` - 資訊安全設計文件
 - `analysis_worklist.md` - 需求分析與工作列表
 
+## API 文件
+應用程式集成了 Swagger UI，可以在以下地址訪問 API 文檔：
+```
+http://localhost:8080/swagger/index.html
+```
+
 ## 開發指南
 1. 確保所有環境變數都已正確設定
-2. 建立資料庫並執行 `database_design.md` 中的 SQL 語句
-3. 使用 `go run main.go` 啟動應用程式
+2. 建立資料庫並執行 `docker-compose up -d` 啟動資料庫
+3. 使用 `air` 啟動開發伺服器（支持熱重載）
 4. 開發新功能時請參考 `analysis_worklist.md` 的工作列表
 5. 遵循 `security_design.md` 中的安全規範
+6. 如需進行 OAuth 測試，請參考 `VSCODE.md` 中的反向代理設定說明
 6. 如需進行 OAuth 測試，請參考 `VSCODE.md` 中的反向代理設定說明

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/sessions"
@@ -13,8 +14,23 @@ import (
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/facebook"
 	"github.com/markbates/goth/providers/instagram"
+	"github.com/swaggo/gin-swagger"
+	"github.com/swaggo/files"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	_ "free2free/docs" // 这里需要导入你项目的文档包
+)
+
+// 声明全局变量
+var (
+	db           *gorm.DB
+	store        *sessions.CookieStore
+	adminDB      *gorm.DB
+	userDB       *gorm.DB
+	organizerDB  *gorm.DB
+	reviewDB     *gorm.DB
+	reviewLikeDB *gorm.DB
 )
 
 // User 代表使用者資料結構
@@ -28,11 +44,6 @@ type User struct {
 	CreatedAt      int64  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      int64  `gorm:"autoUpdateTime" json:"updated_at"`
 }
-
-var (
-	db    *gorm.DB
-	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
-)
 
 func init() {
 	// 載入 .env 檔案
@@ -50,6 +61,13 @@ func init() {
 	if err != nil {
 		log.Fatal("資料庫連線失敗:", err)
 	}
+
+	// 将db变量赋值给其他文件中的db变量
+	adminDB = db
+	userDB = db
+	organizerDB = db
+	reviewDB = db
+	reviewLikeDB = db
 
 	// 自動遷移所有資料表
 	err = db.AutoMigrate(
@@ -80,16 +98,61 @@ func init() {
 		),
 	)
 
+	// 初始化 session store，需要提供 auth key 和 encryption key
+	sessionKey := os.Getenv("SESSION_KEY")
+	if sessionKey == "" {
+		log.Fatal("SESSION_KEY 环境变量未设置")
+	}
+
+	// 将 sessionKey 分为 auth key 和 encryption key
+	var authKey, encryptionKey []byte
+	if len(sessionKey) >= 32 {
+		authKey = []byte(sessionKey[:32])
+		if len(sessionKey) >= 64 {
+			encryptionKey = []byte(sessionKey[32:64])
+		} else {
+			encryptionKey = []byte(sessionKey)
+		}
+	} else {
+		// 如果 key 太短，重复以达到所需长度
+		authKey = make([]byte, 32)
+		encryptionKey = make([]byte, 32)
+		for i := 0; i < 32; i++ {
+			authKey[i] = sessionKey[i%len(sessionKey)]
+			encryptionKey[i] = sessionKey[i%len(sessionKey)]
+		}
+	}
+
+	store = sessions.NewCookieStore(authKey, encryptionKey)
+
 	gothic.Store = store
 }
 
+// @title 買一送一配對網站 API
+// @version 1.0
+// @description 這是一個買一送一配對網站的API文檔
+// @host localhost:8080
+// @BasePath /
 func main() {
 	// 設定 session 名稱
 	gothic.GetProviderName = func(req *http.Request) (string, error) {
-		return req.URL.Query().Get("provider"), nil
+		provider := req.URL.Query().Get("provider")
+		if provider == "" {
+			// 如果查詢參數中沒有提供者，嘗試從路徑中獲取
+			// 這對於處理 /auth/facebook 這樣的路由很有用
+			path := req.URL.Path
+			parts := strings.Split(path, "/")
+			if len(parts) >= 3 {
+				provider = parts[2]
+			}
+		}
+		return provider, nil
 	}
 
 	r := gin.Default()
+	
+	// 添加Swagger路由
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 設定 session middleware
 	r.Use(sessionsMiddleware())
@@ -97,25 +160,25 @@ func main() {
 	// OAuth 認證路由
 	r.GET("/auth/:provider", oauthBegin)
 	r.GET("/auth/:provider/callback", oauthCallback)
-
+	
 	// 登出路由
 	r.GET("/logout", logout)
-
+	
 	// 受保護的路由範例
 	r.GET("/profile", profile)
-
+	
 	// 設定管理後台路由
 	SetupAdminRoutes(r)
-
+	
 	// 設定使用者路由
 	SetupUserRoutes(r)
-
+	
 	// 設定開局者路由
 	SetupOrganizerRoutes(r)
-
+	
 	// 設定評分路由
 	SetupReviewRoutes(r)
-
+	
 	// 設定評論點讚/倒讚路由
 	SetupReviewLikeRoutes(r)
 
@@ -161,7 +224,7 @@ func oauthCallback(c *gin.Context) {
 	session.Save(c.Request, c.Writer)
 
 	// 重新導向到首頁或其他頁面
-	c.Redirect(http.StatusTemporaryRedirect, "/")
+	c.Redirect(http.StatusTemporaryRedirect, "/profile")
 }
 
 // logout 處理登出
@@ -173,6 +236,15 @@ func logout(c *gin.Context) {
 }
 
 // profile 受保護的路由範例
+// @Summary 取得使用者資訊
+// @Description 取得使用者資訊
+// @Tags 使用者
+// @Accept json
+// @Produce json
+// @Success 200 {object} User
+// @Failure 401 {object} map[string]string "未登入"
+// @Failure 500 {object} map[string]string "無法取得使用者資訊"
+// @Router /profile [get]
 func profile(c *gin.Context) {
 	session := c.MustGet("session").(*sessions.Session)
 	userID, ok := session.Values["user_id"]

@@ -67,7 +67,7 @@ func approveParticipant(c *gin.Context) {
 
 	// 檢查參與者是否屬於此配對局
 	var participant MatchParticipant
-	if err := db.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
+	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的參與者不存在或不屬於此配對局"})
 			return
@@ -77,7 +77,7 @@ func approveParticipant(c *gin.Context) {
 	}
 
 	// 更新參與者狀態為 approved
-	if err := db.Model(&participant).Update("status", "approved").Error; err != nil {
+	if err := organizerDB.Model(&participant).Update("status", "approved").Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法審核通過參與者"})
 		return
 	}
@@ -102,7 +102,7 @@ func rejectParticipant(c *gin.Context) {
 
 	// 檢查參與者是否屬於此配對局
 	var participant MatchParticipant
-	if err := db.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
+	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的參與者不存在或不屬於此配對局"})
 			return
@@ -112,7 +112,7 @@ func rejectParticipant(c *gin.Context) {
 	}
 
 	// 更新參與者狀態為 rejected
-	if err := db.Model(&participant).Update("status", "rejected").Error; err != nil {
+	if err := organizerDB.Model(&participant).Update("status", "rejected").Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法審核拒絕參與者"})
 		return
 	}

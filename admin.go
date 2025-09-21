@@ -83,7 +83,7 @@ func SetupAdminRoutes(r *gin.Engine) {
 // listActivities 取得配對活動列表
 func listActivities(c *gin.Context) {
 	var activities []Activity
-	if err := db.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
+	if err := adminDB.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得活動列表"})
 		return
 	}
@@ -107,7 +107,7 @@ func createActivity(c *gin.Context) {
 
 	// 檢查地點是否存在
 	var location Location
-	if err := db.First(&location, activity.LocationID).Error; err != nil {
+	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的地點不存在"})
 			return
@@ -120,7 +120,7 @@ func createActivity(c *gin.Context) {
 	// 為了簡化，這裡暫時設為 1
 	activity.CreatedBy = 1
 
-	if err := db.Create(&activity).Error; err != nil {
+	if err := adminDB.Create(&activity).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立活動"})
 		return
 	}
@@ -150,7 +150,7 @@ func updateActivity(c *gin.Context) {
 
 	// 檢查地點是否存在
 	var location Location
-	if err := db.First(&location, activity.LocationID).Error; err != nil {
+	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的地點不存在"})
 			return
@@ -160,7 +160,7 @@ func updateActivity(c *gin.Context) {
 	}
 
 	// 更新活動
-	if err := db.Model(&Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
+	if err := adminDB.Model(&Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新活動"})
 		return
 	}
@@ -177,7 +177,7 @@ func deleteActivity(c *gin.Context) {
 		return
 	}
 
-	if err := db.Delete(&Activity{}, id).Error; err != nil {
+	if err := adminDB.Delete(&Activity{}, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法刪除活動"})
 		return
 	}
@@ -188,7 +188,7 @@ func deleteActivity(c *gin.Context) {
 // listLocations 取得地點列表
 func listLocations(c *gin.Context) {
 	var locations []Location
-	if err := db.Order("id DESC").Find(&locations).Error; err != nil {
+	if err := adminDB.Order("id DESC").Find(&locations).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得地點列表"})
 		return
 	}
@@ -210,7 +210,7 @@ func createLocation(c *gin.Context) {
 		return
 	}
 
-	if err := db.Create(&location).Error; err != nil {
+	if err := adminDB.Create(&location).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立地點"})
 		return
 	}
@@ -239,7 +239,7 @@ func updateLocation(c *gin.Context) {
 	}
 
 	// 更新地點
-	if err := db.Model(&Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
+	if err := adminDB.Model(&Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新地點"})
 		return
 	}
@@ -256,7 +256,7 @@ func deleteLocation(c *gin.Context) {
 		return
 	}
 
-	if err := db.Delete(&Location{}, id).Error; err != nil {
+	if err := adminDB.Delete(&Location{}, id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法刪除地點"})
 		return
 	}

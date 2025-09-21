@@ -80,7 +80,7 @@ func SetupUserRoutes(r *gin.Engine) {
 func listMatches(c *gin.Context) {
 	var matches []Match
 	// 只顯示狀態為 open 且時間未到的配對
-	if err := db.Preload("Activity").Preload("Organizer").Where("status = ? AND match_time > ?", "open", time.Now()).Order("match_time ASC").Find(&matches).Error; err != nil {
+	if err := userDB.Preload("Activity").Preload("Organizer").Where("status = ? AND match_time > ?", "open", time.Now()).Order("match_time ASC").Find(&matches).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得配對列表"})
 		return
 	}
@@ -104,7 +104,7 @@ func createMatch(c *gin.Context) {
 
 	// 檢查活動是否存在
 	var activity Activity
-	if err := db.First(&activity, match.ActivityID).Error; err != nil {
+	if err := userDB.First(&activity, match.ActivityID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的活動不存在"})
 			return
@@ -118,13 +118,13 @@ func createMatch(c *gin.Context) {
 	match.OrganizerID = 1
 	match.Status = "open"
 
-	if err := db.Create(&match).Error; err != nil {
+	if err := userDB.Create(&match).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立配對局"})
 		return
 	}
 
 	// 預加載關聯資料
-	db.Preload("Activity").Preload("Organizer").First(&match, match.ID)
+	userDB.Preload("Activity").Preload("Organizer").First(&match, match.ID)
 	c.JSON(http.StatusCreated, match)
 }
 
@@ -138,7 +138,7 @@ func joinMatch(c *gin.Context) {
 
 	// 檢查配對局是否存在且可參與
 	var match Match
-	if err := db.Where("id = ? AND status = ? AND match_time > ?", matchID, "open", time.Now()).First(&match).Error; err != nil {
+	if err := userDB.Where("id = ? AND status = ? AND match_time > ?", matchID, "open", time.Now()).First(&match).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的配對局不存在或已關閉"})
 			return
@@ -153,7 +153,7 @@ func joinMatch(c *gin.Context) {
 
 	// 檢查使用者是否已經參與此配對局
 	var existingParticipant MatchParticipant
-	err = db.Where("match_id = ? AND user_id = ?", matchID, userID).First(&existingParticipant).Error
+	err = userDB.Where("match_id = ? AND user_id = ?", matchID, userID).First(&existingParticipant).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查參與狀態"})
 		return
@@ -173,13 +173,13 @@ func joinMatch(c *gin.Context) {
 		JoinedAt: time.Now(),
 	}
 
-	if err := db.Create(&participant).Error; err != nil {
+	if err := userDB.Create(&participant).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法參與配對局"})
 		return
 	}
 
 	// 預加載關聯資料
-	db.Preload("Match").Preload("User").First(&participant, participant.ID)
+	userDB.Preload("Match").Preload("User").First(&participant, participant.ID)
 	c.JSON(http.StatusCreated, participant)
 }
 
@@ -191,7 +191,7 @@ func listPastMatches(c *gin.Context) {
 
 	var matches []Match
 	// 取得該使用者參與過的已完成的配對局
-	if err := db.Joins("JOIN match_participants mp ON matches.id = mp.match_id").
+	if err := userDB.Joins("JOIN match_participants mp ON matches.id = mp.match_id").
 		Where("mp.user_id = ? AND matches.status = ?", userID, "completed").
 		Order("matches.match_time DESC").
 		Preload("Activity").
