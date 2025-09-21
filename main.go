@@ -30,7 +30,7 @@ type User struct {
 var (
 	db *sql.DB
 	// 使用 Gorilla Sessions 管理 session
-	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
+	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 )
 
 func init() {
@@ -65,6 +65,8 @@ func init() {
 			fmt.Sprintf("%s/auth/instagram/callback", os.Getenv("BASE_URL")),
 		),
 	)
+
+	gothic.Store = store
 }
 
 func main() {
