@@ -1,0 +1,74 @@
+# 買一送一配對網站
+
+這是一個使用 Go 語言開發的買一送一配對網站。
+
+## 功能特色
+- 使用者可以透過 Facebook 或 Instagram 登入
+- 管理者可以建立配對活動與地點
+- 使用者可以建立配對局或加入他人建立的配對局
+- 開局者可以審核參與者
+- 配對完成後可互相評分與留言
+- 評論可點讚或倒讚
+
+## 技術架構
+- 後端：Go + Gin 框架
+- 資料庫：MySQL
+- OAuth 認證：Goth 套件
+- Session 管理：Gorilla Sessions
+
+## 安裝與設定
+
+### 環境變數
+需要設定以下環境變數：
+- `SESSION_KEY` - Session 加密金鑰
+- `DB_USER` - 資料庫使用者名稱
+- `DB_PASSWORD` - 資料庫密碼
+- `DB_NAME` - 資料庫名稱
+- `FACEBOOK_KEY` - Facebook OAuth 應用程式金鑰
+- `FACEBOOK_SECRET` - Facebook OAuth 應用程式密鑰
+- `INSTAGRAM_KEY` - Instagram OAuth 應用程式金鑰
+- `INSTAGRAM_SECRET` - Instagram OAuth 應用程式密鑰
+- `BASE_URL` - 應用程式基礎 URL (例如: http://localhost:8080)
+
+可以複製 `.env.example` 檔案為 `.env` 並填入相應的值：
+```bash
+cp .env.example .env
+```
+
+### 資料庫設定
+請參考 `database_design.md` 建立資料表。
+
+### 安裝相依套件
+```bash
+go mod tidy
+```
+
+### 執行應用程式
+```bash
+go run main.go
+```
+
+## API 端點
+
+### OAuth 認證
+- `GET /auth/:provider` - 開始 OAuth 認證流程
+- `GET /auth/:provider/callback` - OAuth 認證回調
+- `GET /logout` - 登出
+
+### 使用者相關
+- `GET /profile` - 取得使用者資訊 (需登入)
+
+## 專案結構
+- `main.go` - 應用程式入口點
+- `main_test.go` - 測試設定
+- `go.mod`, `go.sum` - 相依套件管理
+- `database_design.md` - 資料庫設計文件
+- `security_design.md` - 資訊安全設計文件
+- `analysis_worklist.md` - 需求分析與工作列表
+
+## 開發指南
+1. 確保所有環境變數都已正確設定
+2. 建立資料庫並執行 `database_design.md` 中的 SQL 語句
+3. 使用 `go run main.go` 啟動應用程式
+4. 開發新功能時請參考 `analysis_worklist.md` 的工作列表
+5. 遵循 `security_design.md` 中的安全規範
