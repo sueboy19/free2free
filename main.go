@@ -30,7 +30,7 @@ type User struct {
 var (
 	db *sql.DB
 	// 使用 Gorilla Sessions 管理 session
-	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+	store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))
 )
 
 func init() {
