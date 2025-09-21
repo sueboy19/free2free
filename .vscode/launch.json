@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Package",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "env": {
+        "SESSION_KEY": "your_session_key",
+        "DB_USER": "your_database_user",
+        "DB_PASSWORD": "your_database_password",
+        "DB_NAME": "free2free",
+        "FACEBOOK_KEY": "your_facebook_app_key",
+        "FACEBOOK_SECRET": "your_facebook_app_secret",
+        "INSTAGRAM_KEY": "your_instagram_app_key",
+        "INSTAGRAM_SECRET": "your_instagram_app_secret",
+        "BASE_URL": "http://localhost:8080"
+      }
+    }
+  ]
+}
