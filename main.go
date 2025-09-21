@@ -52,6 +52,10 @@ func init() {
 		log.Fatal("資料庫連線失敗:", err)
 	}
 
+	if err := db.Ping(); err != nil {
+		log.Fatal("无法连接到数据库:", err)
+	}
+
 	// 設定 OAuth 提供者
 	goth.UseProviders(
 		facebook.New(
