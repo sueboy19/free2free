@@ -45,7 +45,7 @@ go mod tidy
 
 ### 執行應用程式
 ```bash
-go run main.go
+go run .
 ```
 
 ## API 端點

@@ -8,13 +8,13 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/facebook"
 	"github.com/markbates/goth/providers/instagram"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 // User 代表使用者資料結構
@@ -39,26 +39,29 @@ func init() {
 		log.Println("無法載入 .env 檔案，使用環境變數")
 	}
 
+	mode := os.Getenv("GIN_MODE")
+	gin.SetMode(mode)
+
 	// 初始化資料庫連線
 	var err error
-	db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@/%s?parseTime=true", 
-		os.Getenv("DB_USER"), 
-		os.Getenv("DB_PASSWORD"), 
+	db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@/%s?parseTime=true",
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
 		os.Getenv("DB_NAME")))
 	if err != nil {
 		log.Fatal("資料庫連線失敗:", err)
 	}
-	
+
 	// 設定 OAuth 提供者
 	goth.UseProviders(
 		facebook.New(
-			os.Getenv("FACEBOOK_KEY"), 
-			os.Getenv("FACEBOOK_SECRET"), 
+			os.Getenv("FACEBOOK_KEY"),
+			os.Getenv("FACEBOOK_SECRET"),
 			fmt.Sprintf("%s/auth/facebook/callback", os.Getenv("BASE_URL")),
 		),
 		instagram.New(
-			os.Getenv("INSTAGRAM_KEY"), 
-			os.Getenv("INSTAGRAM_SECRET"), 
+			os.Getenv("INSTAGRAM_KEY"),
+			os.Getenv("INSTAGRAM_SECRET"),
 			fmt.Sprintf("%s/auth/instagram/callback", os.Getenv("BASE_URL")),
 		),
 	)
@@ -71,32 +74,32 @@ func main() {
 	}
 
 	r := gin.Default()
-	
+
 	// 設定 session middleware
 	r.Use(sessionsMiddleware())
 
 	// OAuth 認證路由
 	r.GET("/auth/:provider", oauthBegin)
 	r.GET("/auth/:provider/callback", oauthCallback)
-	
+
 	// 登出路由
 	r.GET("/logout", logout)
-	
+
 	// 受保護的路由範例
 	r.GET("/profile", profile)
-	
+
 	// 設定管理後台路由
 	SetupAdminRoutes(r)
-	
+
 	// 設定使用者路由
 	SetupUserRoutes(r)
-	
+
 	// 設定開局者路由
 	SetupOrganizerRoutes(r)
-	
+
 	// 設定評分路由
 	SetupReviewRoutes(r)
-	
+
 	// 設定評論點讚/倒讚路由
 	SetupReviewLikeRoutes(r)
 
@@ -177,16 +180,16 @@ func profile(c *gin.Context) {
 // saveOrUpdateUser 儲存或更新使用者資訊
 func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 	var user User
-	
+
 	// 檢查使用者是否已存在
-	err := db.QueryRow("SELECT id, social_id, social_provider, name, email, avatar_url FROM users WHERE social_id = ? AND social_provider = ?", 
+	err := db.QueryRow("SELECT id, social_id, social_provider, name, email, avatar_url FROM users WHERE social_id = ? AND social_provider = ?",
 		gothUser.UserID, gothUser.Provider).Scan(&user.ID, &user.SocialID, &user.SocialProvider, &user.Name, &user.Email, &user.AvatarURL)
-	
+
 	if err != nil && err != sql.ErrNoRows {
 		// 查詢出錯
 		return nil, err
 	}
-	
+
 	if err == sql.ErrNoRows {
 		// 使用者不存在，建立新使用者
 		result, err := db.Exec("INSERT INTO users (social_id, social_provider, name, email, avatar_url) VALUES (?, ?, ?, ?, ?)",
@@ -194,12 +197,12 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		id, err := result.LastInsertId()
 		if err != nil {
 			return nil, err
 		}
-		
+
 		user = User{
 			ID:             id,
 			SocialID:       gothUser.UserID,
@@ -215,11 +218,11 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		user.Name = gothUser.Name
 		user.Email = gothUser.Email
 		user.AvatarURL = gothUser.AvatarURL
 	}
-	
+
 	return &user, nil
 }
