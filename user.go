@@ -51,11 +51,9 @@ func UserAuthMiddleware() gin.HandlerFunc {
 // isAuthenticatedUser 檢查是否為已認證的使用者
 // 這是一個簡化的實作，實際應用中需要檢查 session 或 token
 func isAuthenticatedUser(c *gin.Context) bool {
-	// 這裡應該實作實際的認證邏輯
-	// 例如檢查 session 中是否有 user_id
-	// 或解析 JWT token 驗證使用者身份
-	// 為了示範，這裡暫時回傳 true
-	return true
+	// 取得已認證的使用者
+	_, err := getAuthenticatedUser(c)
+	return err == nil
 }
 
 // SetupUserRoutes 設定使用者路由
@@ -135,9 +133,15 @@ func createMatch(c *gin.Context) {
 		return
 	}
 
-	// 這裡應該從 session 或 token 取得使用者 ID
-	// 為了簡化，這裡暫時設為 1
-	match.OrganizerID = 1
+	// 從認證資訊取得使用者 ID
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		return
+	}
+	
+	// 設定開局者為當前使用者
+	match.OrganizerID = user.ID
 	match.Status = "open"
 
 	if err := userDB.Create(&match).Error; err != nil {
@@ -180,9 +184,14 @@ func joinMatch(c *gin.Context) {
 		return
 	}
 
-	// 這裡應該從 session 或 token 取得使用者 ID
-	// 為了簡化，這裡暫時設為 1
-	userID := int64(1)
+	// 從認證資訊取得使用者 ID
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		return
+	}
+	
+	userID := user.ID
 
 	// 檢查使用者是否已經參與此配對局
 	var existingParticipant MatchParticipant
@@ -227,9 +236,14 @@ func joinMatch(c *gin.Context) {
 // @Router /user/past-matches [get]
 // @Security ApiKeyAuth
 func listPastMatches(c *gin.Context) {
-	// 這裡應該從 session 或 token 取得使用者 ID
-	// 為了簡化，這裡暫時設為 1
-	userID := int64(1)
+	// 從認證資訊取得使用者 ID
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		return
+	}
+	
+	userID := user.ID
 
 	var matches []Match
 	// 取得該使用者參與過的已完成的配對局

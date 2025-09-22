@@ -51,9 +51,14 @@ func likeReview(c *gin.Context) {
 		return
 	}
 
-	// 這裡應該從 session 或 token 取得使用者 ID
-	// 為了簡化，這裡暫時設為 1
-	userID := int64(1)
+	// 從認證資訊取得使用者 ID
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		return
+	}
+	
+	userID := user.ID
 
 	// 檢查評論是否存在
 	var review Review
@@ -127,9 +132,14 @@ func dislikeReview(c *gin.Context) {
 		return
 	}
 
-	// 這裡應該從 session 或 token 取得使用者 ID
-	// 為了簡化，這裡暫時設為 1
-	userID := int64(1)
+	// 從認證資訊取得使用者 ID
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		return
+	}
+	
+	userID := user.ID
 
 	// 檢查評論是否存在
 	var review Review

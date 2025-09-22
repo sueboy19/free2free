@@ -55,11 +55,18 @@ func AdminAuthMiddleware() gin.HandlerFunc {
 // isAuthenticatedAdmin 檢查是否為已認證的管理員
 // 這是一個簡化的實作，實際應用中需要檢查 session 或 token
 func isAuthenticatedAdmin(c *gin.Context) bool {
-	// 這裡應該實作實際的認證邏輯
-	// 例如檢查 session 中是否有 admin_id
-	// 或解析 JWT token 驗證管理員身份
-	// 為了示範，這裡暫時回傳 true
-	return true
+	// 在這個簡化的實作中，我們假設 userID 為 1 的使用者是管理員
+	// 實際應用中應該有一個管理員表或管理員標記欄位
+	
+	// 取得已認證的使用者
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		return false
+	}
+	
+	// 這裡簡化處理，假設 ID 為 1 的使用者是管理員
+	// 實際應用中應該檢查管理員表或使用者的管理員標記
+	return user.ID == 1
 }
 
 // SetupAdminRoutes 設定管理後台路由
@@ -138,9 +145,15 @@ func createActivity(c *gin.Context) {
 		return
 	}
 
-	// 這裡應該從 session 或 token 取得管理員 ID
-	// 為了簡化，這裡暫時設為 1
-	activity.CreatedBy = 1
+	// 從認證資訊取得使用者 ID
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		return
+	}
+	
+	// 設定活動建立者為當前使用者
+	activity.CreatedBy = user.ID
 
 	if err := adminDB.Create(&activity).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立活動"})

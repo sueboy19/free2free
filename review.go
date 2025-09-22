@@ -51,8 +51,28 @@ func ReviewAuthMiddleware() gin.HandlerFunc {
 // 這是一個簡化的實作，實際應用中需要檢查使用者是否參與了配對局
 // 且配對局已結束但在評分時間範圍內
 func canReviewMatch(c *gin.Context, matchID int64) bool {
-	// 這裡應該實作實際的認證邏輯
-	// 為了示範，這裡暫時回傳 true
+	// 取得已認證的使用者
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		return false
+	}
+	
+	// 檢查使用者是否參與了指定的配對局
+	var participant MatchParticipant
+	err = reviewDB.Where("match_id = ? AND user_id = ?", matchID, user.ID).First(&participant).Error
+	if err != nil {
+		return false
+	}
+	
+	// 檢查配對局是否已完成且在評分時間範圍內
+	var match Match
+	err = reviewDB.Where("id = ? AND status = ?", matchID, "completed").First(&match).Error
+	if err != nil {
+		return false
+	}
+	
+	// 這裡簡化處理，實際應用中應該檢查是否在評分時間範圍內 (結束後4小時)
+	// 例如: match.EndTime.Add(4 * time.Hour).After(time.Now())
 	return true
 }
 
@@ -99,9 +119,14 @@ func createReview(c *gin.Context) {
 		return
 	}
 
-	// 這裡應該從 session 或 token 取得評分者 ID
-	// 為了簡化，這裡暫時設為 1
-	review.ReviewerID = 1
+	// 從認證資訊取得評分者 ID
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		return
+	}
+	
+	review.ReviewerID = user.ID
 	review.MatchID = matchID
 	review.CreatedAt = time.Now()
 

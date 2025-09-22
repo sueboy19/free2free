@@ -9,7 +9,19 @@ GET /auth/facebook
 ```
 
 **回應:**
-重新導向至 Facebook OAuth 頁面
+```json
+{
+  "user": {
+    "id": 1,
+    "social_id": "123456789",
+    "social_provider": "facebook",
+    "name": "張三",
+    "email": "zhangsan@example.com",
+    "avatar_url": "https://example.com/avatar.jpg"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
 ### 1.2 Instagram 登入
 **請求:**
@@ -18,9 +30,36 @@ GET /auth/instagram
 ```
 
 **回應:**
-重新導向至 Instagram OAuth 頁面
+```json
+{
+  "user": {
+    "id": 1,
+    "social_id": "123456789",
+    "social_provider": "instagram",
+    "name": "張三",
+    "email": "zhangsan@example.com",
+    "avatar_url": "https://example.com/avatar.jpg"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-### 1.3 登出
+### 1.3 交換 Session 為 JWT Token
+如果已經透過瀏覽器登入，可以使用此端點交換 Session 為 JWT Token，以便在 Swagger 中使用。
+
+**請求:**
+```
+GET /auth/token
+```
+
+**回應:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### 1.4 登出
 **請求:**
 ```
 GET /logout
@@ -29,7 +68,7 @@ GET /logout
 **回應:**
 重新導向至首頁
 
-### 1.4 取得使用者資訊
+### 1.5 取得使用者資訊
 **請求:**
 ```
 GET /profile
@@ -46,6 +85,58 @@ Authorization: Bearer {token}
   "email": "zhangsan@example.com",
   "avatar_url": "https://example.com/avatar.jpg"
 }
+```
+
+### 1.5 交換 Session 為 JWT Token
+**請求:**
+```
+GET /auth/token
+Authorization: Bearer {token} (或使用 session)
+```
+
+**回應:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+## 在 Swagger UI 中使用 Facebook 登入
+
+由於 Swagger UI 無法直接處理 OAuth 重定向，請按照以下步驟操作：
+
+1. 在瀏覽器中打開 `http://localhost:8080/auth/facebook` 進行 Facebook 登入
+2. 登入成功後，頁面會顯示使用者資訊和 JWT token
+3. 複製返回的 JWT token
+4. 在 Swagger UI 中點擊右上角的 "Authorize" 按鈕
+5. 在輸入框中輸入 `Bearer <複製的token>` (注意 Bearer 和 token 之間有一個空格)
+6. 點擊 "Authorize" 然後 "Close"
+7. 現在可以在 Swagger UI 中執行需要認證的 API 請求
+
+## 在 Swagger UI 中使用 Session 交換 Token
+
+如果已經在瀏覽器中登入，但沒有獲得 token，可以透過以下步驟獲取:
+
+1. 瀏覽器中已登入的狀態下，訪問 `http://localhost:8080/auth/token`
+2. 此端點會返回一個 JWT token
+3. 複製該 token 並在 Swagger UI 中使用
+
+## 2. 管理後台
+
+### 2.1 取得配對活動列表
+**請求:**
+```
+GET /admin/activities
+Authorization: Bearer {admin_token}
+```
+
+## 2. 管理後台
+
+### 2.1 取得配對活動列表
+**請求:**
+```
+GET /admin/activities
+Authorization: Bearer {admin_token}
 ```
 
 ## 2. 管理後台

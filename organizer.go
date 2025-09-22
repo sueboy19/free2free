@@ -33,10 +33,16 @@ func OrganizerAuthMiddleware() gin.HandlerFunc {
 // isMatchOrganizer 檢查是否為指定配對局的開局者
 // 這是一個簡化的實作，實際應用中需要檢查 session 或 token
 func isMatchOrganizer(c *gin.Context, matchID int64) bool {
-	// 這裡應該實作實際的認證邏輯
-	// 例如檢查 session 中的 user_id 是否與配對局的 organizer_id 相同
-	// 為了示範，這裡暫時回傳 true
-	return true
+	// 取得已認證的使用者
+	user, err := getAuthenticatedUser(c)
+	if err != nil {
+		return false
+	}
+	
+	// 檢查配對局是否存在且開局者為當前使用者
+	var match Match
+	err = organizerDB.Where("id = ? AND organizer_id = ?", matchID, user.ID).First(&match).Error
+	return err == nil
 }
 
 // SetupOrganizerRoutes 設定開局者路由
