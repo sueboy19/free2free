@@ -1,0 +1,816 @@
+basePath: /
+definitions:
+  main.Activity:
+    description: 配對活動資訊
+    properties:
+      created_by:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      location:
+        $ref: '#/definitions/main.Location'
+      location_id:
+        type: integer
+      target_count:
+        type: integer
+      title:
+        type: string
+    type: object
+  main.Location:
+    description: 地點資訊
+    properties:
+      address:
+        type: string
+      id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      name:
+        type: string
+    type: object
+  main.Match:
+    description: 配對局資訊
+    properties:
+      activity:
+        $ref: '#/definitions/main.Activity'
+      activity_id:
+        type: integer
+      id:
+        type: integer
+      match_time:
+        type: string
+      organizer:
+        $ref: '#/definitions/main.User'
+      organizer_id:
+        type: integer
+      status:
+        description: open, closed, completed
+        type: string
+    type: object
+  main.MatchParticipant:
+    description: 配對參與者資訊
+    properties:
+      id:
+        type: integer
+      joined_at:
+        type: string
+      match:
+        $ref: '#/definitions/main.Match'
+      match_id:
+        type: integer
+      status:
+        description: pending, approved, rejected
+        type: string
+      user:
+        $ref: '#/definitions/main.User'
+      user_id:
+        type: integer
+    type: object
+  main.Review:
+    description: 評分與留言資訊
+    properties:
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      match:
+        $ref: '#/definitions/main.Match'
+      match_id:
+        type: integer
+      reviewee:
+        $ref: '#/definitions/main.User'
+      reviewee_id:
+        type: integer
+      reviewer:
+        $ref: '#/definitions/main.User'
+      reviewer_id:
+        type: integer
+      score:
+        description: 3-5分
+        type: integer
+    type: object
+  main.ReviewLike:
+    description: 評論點讚/倒讚資訊
+    properties:
+      id:
+        type: integer
+      is_like:
+        description: 'true: 點讚, false: 倒讚'
+        type: boolean
+      review:
+        $ref: '#/definitions/main.Review'
+      review_id:
+        type: integer
+      user:
+        $ref: '#/definitions/main.User'
+      user_id:
+        type: integer
+    type: object
+  main.User:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      social_id:
+        type: string
+      social_provider:
+        type: string
+      updated_at:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: 這是一個買一送一配對網站的API文檔
+  title: 買一送一配對網站 API
+  version: "1.0"
+paths:
+  /admin/activities:
+    get:
+      consumes:
+      - application/json
+      description: 取得所有配對活動的列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Activity'
+            type: array
+        "500":
+          description: 無法取得活動列表
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 取得配對活動列表
+      tags:
+      - 管理員
+    post:
+      consumes:
+      - application/json
+      description: 建立新的配對活動
+      parameters:
+      - description: 配對活動資訊
+        in: body
+        name: activity
+        required: true
+        schema:
+          $ref: '#/definitions/main.Activity'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.Activity'
+        "400":
+          description: 無效的請求資料
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法建立活動
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 建立新的配對活動
+      tags:
+      - 管理員
+  /admin/activities/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 刪除指定ID的配對活動
+      parameters:
+      - description: 活動ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 活動已刪除
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 無效的活動 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法刪除活動
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 刪除配對活動
+      tags:
+      - 管理員
+    put:
+      consumes:
+      - application/json
+      description: 更新指定ID的配對活動
+      parameters:
+      - description: 活動ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 配對活動資訊
+        in: body
+        name: activity
+        required: true
+        schema:
+          $ref: '#/definitions/main.Activity'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Activity'
+        "400":
+          description: 無效的請求資料
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法更新活動
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 更新配對活動
+      tags:
+      - 管理員
+  /admin/locations:
+    get:
+      consumes:
+      - application/json
+      description: 取得所有地點的列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Location'
+            type: array
+        "500":
+          description: 無法取得地點列表
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 取得地點列表
+      tags:
+      - 管理員
+    post:
+      consumes:
+      - application/json
+      description: 建立新的地點
+      parameters:
+      - description: 地點資訊
+        in: body
+        name: location
+        required: true
+        schema:
+          $ref: '#/definitions/main.Location'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.Location'
+        "400":
+          description: 無效的請求資料
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法建立地點
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 建立新的地點
+      tags:
+      - 管理員
+  /admin/locations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 刪除指定ID的地點
+      parameters:
+      - description: 地點ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 地點已刪除
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: 無效的地點 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法刪除地點
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 刪除地點
+      tags:
+      - 管理員
+    put:
+      consumes:
+      - application/json
+      description: 更新指定ID的地點
+      parameters:
+      - description: 地點ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 地點資訊
+        in: body
+        name: location
+        required: true
+        schema:
+          $ref: '#/definitions/main.Location'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.Location'
+        "400":
+          description: 無效的請求資料
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法更新地點
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 更新地點
+      tags:
+      - 管理員
+  /auth/{provider}:
+    get:
+      consumes:
+      - application/json
+      description: 開始 Facebook 或 Instagram OAuth 流程
+      parameters:
+      - description: OAuth 提供者 (facebook 或 instagram)
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: 重定向到 OAuth 提供者
+          schema:
+            type: string
+      summary: 開始 OAuth 流程
+      tags:
+      - 認證
+  /auth/{provider}/callback:
+    get:
+      consumes:
+      - application/json
+      description: 處理 OAuth 提供者的回調
+      parameters:
+      - description: OAuth 提供者 (facebook 或 instagram)
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: 重定向到首頁
+          schema:
+            type: string
+        "500":
+          description: OAuth 回調錯誤
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OAuth 回調處理
+      tags:
+      - 認證
+  /logout:
+    get:
+      consumes:
+      - application/json
+      description: 登出使用者並清除 session
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: 重定向到首頁
+          schema:
+            type: string
+      summary: 處理登出
+      tags:
+      - 認證
+  /organizer/matches/{id}/participants/{participant_id}/approve:
+    put:
+      consumes:
+      - application/json
+      description: 開局者審核通過指定配對局的參與者
+      parameters:
+      - description: 配對局ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 參與者ID
+        in: path
+        name: participant_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.MatchParticipant'
+        "400":
+          description: 無效的配對局 ID 或參與者 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法審核通過參與者
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 審核通過參與者
+      tags:
+      - 開局者
+  /organizer/matches/{id}/participants/{participant_id}/reject:
+    put:
+      consumes:
+      - application/json
+      description: 開局者審核拒絕指定配對局的參與者
+      parameters:
+      - description: 配對局ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 參與者ID
+        in: path
+        name: participant_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.MatchParticipant'
+        "400":
+          description: 無效的配對局 ID 或參與者 ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法審核拒絕參與者
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 審核拒絕參與者
+      tags:
+      - 開局者
+  /profile:
+    get:
+      consumes:
+      - application/json
+      description: 取得使用者資訊
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.User'
+        "401":
+          description: 未登入
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法取得使用者資訊
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 取得使用者資訊
+      tags:
+      - 使用者
+  /review-like/reviews/{id}/dislike:
+    post:
+      consumes:
+      - application/json
+      description: 對指定ID的評論進行倒讚
+      parameters:
+      - description: 評論ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.ReviewLike'
+        "400":
+          description: 無效的評論 ID 或已倒讚
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法倒讚評論
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 倒讚評論
+      tags:
+      - 評論
+  /review-like/reviews/{id}/like:
+    post:
+      consumes:
+      - application/json
+      description: 對指定ID的評論進行點讚
+      parameters:
+      - description: 評論ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.ReviewLike'
+        "400":
+          description: 無效的評論 ID 或已點讚
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法點讚評論
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 點讚評論
+      tags:
+      - 評論
+  /review/matches/{id}:
+    post:
+      consumes:
+      - application/json
+      description: 建立對指定配對局中其他參與者的評分與留言
+      parameters:
+      - description: 配對局ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 評分與留言資訊
+        in: body
+        name: review
+        required: true
+        schema:
+          $ref: '#/definitions/main.Review'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.Review'
+        "400":
+          description: 無效的請求資料或已評分過
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法建立評分記錄
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 建立評分與留言
+      tags:
+      - 評分
+  /user/matches:
+    get:
+      consumes:
+      - application/json
+      description: 取得所有時間未到且狀態為open的配對列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Match'
+            type: array
+        "500":
+          description: 無法取得配對列表
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 取得時間未到的配對列表
+      tags:
+      - 使用者
+    post:
+      consumes:
+      - application/json
+      description: 建立新的配對局 (開局)
+      parameters:
+      - description: 配對局資訊
+        in: body
+        name: match
+        required: true
+        schema:
+          $ref: '#/definitions/main.Match'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.Match'
+        "400":
+          description: 無效的請求資料
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法建立配對局
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 建立新的配對局
+      tags:
+      - 使用者
+  /user/matches/{id}/join:
+    post:
+      consumes:
+      - application/json
+      description: 參與指定ID的配對局
+      parameters:
+      - description: 配對局ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.MatchParticipant'
+        "400":
+          description: 無效的配對局 ID 或已參與
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: 無法參與配對局
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 參與配對
+      tags:
+      - 使用者
+  /user/past-matches:
+    get:
+      consumes:
+      - application/json
+      description: 取得該使用者參與過的已完成的配對局列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.Match'
+            type: array
+        "500":
+          description: 無法取得過去參與的配對列表
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: 取得過去參與的配對列表
+      tags:
+      - 使用者
+swagger: "2.0"
