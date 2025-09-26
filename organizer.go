@@ -16,13 +16,13 @@ func OrganizerAuthMiddleware() gin.HandlerFunc {
 		// 為了簡化，這裡假設有一個 isMatchOrganizer 函數
 		matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "無效的配對局 ID"})
+			c.JSON(400, gin.H{"error": "無效的配對局 ID"})
 			c.Abort()
 			return
 		}
 
 		if !isMatchOrganizer(c, matchID) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "需要開局者權限"})
+			c.JSON(401, gin.H{"error": "需要開局者權限"})
 			c.Abort()
 			return
 		}
@@ -38,7 +38,7 @@ func isMatchOrganizer(c *gin.Context, matchID int64) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	// 檢查配對局是否存在且開局者為當前使用者
 	var match Match
 	err = organizerDB.Where("id = ? AND organizer_id = ?", matchID, user.ID).First(&match).Error

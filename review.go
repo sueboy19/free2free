@@ -33,13 +33,13 @@ func ReviewAuthMiddleware() gin.HandlerFunc {
 		// 為了簡化，這裡假設有一個 canReviewMatch 函數
 		matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "無效的配對局 ID"})
+			c.JSON(400, gin.H{"error": "無效的配對局 ID"})
 			c.Abort()
 			return
 		}
 
 		if !canReviewMatch(c, matchID) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "無評分權限"})
+			c.JSON(401, gin.H{"error": "無評分權限"})
 			c.Abort()
 			return
 		}
@@ -56,24 +56,28 @@ func canReviewMatch(c *gin.Context, matchID int64) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	// 檢查使用者是否參與了指定的配對局
 	var participant MatchParticipant
-	err = reviewDB.Where("match_id = ? AND user_id = ?", matchID, user.ID).First(&participant).Error
+	err = reviewDB.Where("match_id = ? AND user_id = ? AND status = ?", matchID, user.ID, "approved").First(&participant).Error
 	if err != nil {
 		return false
 	}
-	
-	// 檢查配對局是否已完成且在評分時間範圍內
+
+	// 檢查配對局是否已完成
 	var match Match
 	err = reviewDB.Where("id = ? AND status = ?", matchID, "completed").First(&match).Error
 	if err != nil {
 		return false
 	}
-	
-	// 這裡簡化處理，實際應用中應該檢查是否在評分時間範圍內 (結束後4小時)
-	// 例如: match.EndTime.Add(4 * time.Hour).After(time.Now())
-	return true
+
+	// 檢查是否在評分時間範圍內（結束後4小時內）
+	// 假設配對局結束時間存儲在 match.MatchTime 中
+	// 實際應用中可能需要一個額外的字段來記錄配對局的結束時間
+	endTime := match.MatchTime
+	reviewDeadline := endTime.Add(4 * time.Hour)
+
+	return time.Now().Before(reviewDeadline)
 }
 
 // SetupReviewRoutes 設定評分路由
@@ -125,14 +129,14 @@ func createReview(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
 		return
 	}
-	
+
 	review.ReviewerID = user.ID
 	review.MatchID = matchID
 	review.CreatedAt = time.Now()
 
 	// 檢查是否已經對此人在此配對局評分過
 	var existingReview Review
-	err = reviewDB.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?", 
+	err = reviewDB.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?",
 		review.ReviewerID, review.RevieweeID, review.MatchID).First(&existingReview).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查評分記錄"})
