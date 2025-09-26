@@ -48,13 +48,7 @@ type User struct {
 	UpdatedAt      int64  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
-// JwtClaims 自定义JWT声明结构
-type JwtClaims struct {
-	UserID   int64  `json:"user_id"`
-	UserName string `json:"user_name"`
-	IsAdmin  bool   `json:"is_admin"` // 添加管理員標記
-	jwt.RegisteredClaims
-}
+
 
 func init() {
 	// 載入 .env 檔案
@@ -140,56 +134,9 @@ func init() {
 	gothic.Store = store
 }
 
-// generateJWT 生成JWT token
-func generateJWT(user *User) (string, error) {
-	// 获取JWT密钥
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return "", fmt.Errorf("JWT_SECRET 环境变量未设置")
-	}
 
-	// 创建声明
-	claims := &JwtClaims{
-		UserID:   user.ID,
-		UserName: user.Name,
-		IsAdmin:  user.IsAdmin, // 包含管理員標記
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 24小时过期
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
 
-	// 创建token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	// 签名token
-	return token.SignedString([]byte(jwtSecret))
-}
-
-// validateJWT 验证JWT token
-func validateJWT(tokenString string) (*JwtClaims, error) {
-	// 获取JWT密钥
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		return nil, fmt.Errorf("JWT_SECRET 环境变量未设置")
-	}
-
-	// 解析token
-	token, err := jwt.ParseWithClaims(tokenString, &JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// 验证token
-	if claims, ok := token.Claims.(*JwtClaims); ok && token.Valid {
-		return claims, nil
-	}
-
-	return nil, fmt.Errorf("无效的token")
-}
 
 // sessionsMiddleware 将 session 存储在 context 中
 func sessionsMiddleware() gin.HandlerFunc {
@@ -436,22 +383,26 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 type Claims struct {
 	UserID   int64  `json:"user_id"`
 	UserName string `json:"user_name"`
+	IsAdmin  bool   `json:"is_admin"` // 添加管理員標記
 	jwt.RegisteredClaims
 }
 
 // generateJWTToken 生成 JWT token
 func generateJWTToken(user *User) (string, error) {
-	// 設定 JWT token 過期時間 (24小時)
-	expirationTime := time.Now().Add(24 * time.Hour)
+	// 获取JWT密钥
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return "", fmt.Errorf("JWT_SECRET 环境变量未设置")
+	}
 
 	// 建立 claims
 	claims := &Claims{
 		UserID:   user.ID,
 		UserName: user.Name,
+		IsAdmin:  user.IsAdmin, // 包含管理員標記
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 24小时过期
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   fmt.Sprintf("user:%d", user.ID),
 		},
 	}
 
@@ -459,37 +410,32 @@ func generateJWTToken(user *User) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// 簽署 token
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
+	return token.SignedString([]byte(jwtSecret))
 }
 
 // validateJWTToken 驗證 JWT token
 func validateJWTToken(tokenString string) (*Claims, error) {
-	// 解析 token
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		// 驗證簽署方法
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("JWT_SECRET")), nil
+	// 获取JWT密钥
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return nil, fmt.Errorf("JWT_SECRET 环境变量未设置")
+	}
+
+	// 解析token
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
 	})
 
-	// 檢查解析錯誤
 	if err != nil {
 		return nil, err
 	}
 
-	// 驗證 token 有效性
-	if !token.Valid {
-		return nil, fmt.Errorf("invalid token")
+	// 验证token
+	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+		return claims, nil
 	}
 
-	return claims, nil
+	return nil, fmt.Errorf("无效的token")
 }
 
 // getAuthenticatedUser 從 context 中取得已認證的使用者
