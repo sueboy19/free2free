@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"github.com/markbates/goth"
@@ -26,13 +29,16 @@ import (
 
 // 声明全局变量
 var (
-	db           *gorm.DB
-	store        *sessions.CookieStore
-	adminDB      *gorm.DB
-	userDB       *gorm.DB
-	organizerDB  *gorm.DB
-	reviewDB     *gorm.DB
-	reviewLikeDB *gorm.DB
+	store *sessions.CookieStore
+)
+
+var (
+	db           DB
+	adminDB      DB
+	userDB       DB
+	organizerDB  DB
+	reviewDB     DB
+	reviewLikeDB DB
 )
 
 // User 代表使用者資料結構
@@ -44,16 +50,18 @@ type User struct {
 	Email          string `json:"email"`
 	AvatarURL      string `json:"avatar_url"`
 	IsAdmin        bool   `json:"is_admin"` // 添加管理員標記
-	CreatedAt      int64  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt      int64  `gorm:"autoUpdateTime" json:"updated_at"`
+	CreatedAt      int64  `gorm:"type:bigint;autoCreateTime:milli" json:"created_at"`
+	UpdatedAt      int64  `gorm:"type:bigint;autoCreateTime:milli" json:"updated_at"`
 }
-
-
 
 func init() {
 	// 載入 .env 檔案
 	if err := godotenv.Load(); err != nil {
 		log.Println("無法載入 .env 檔案，使用環境變數")
+	}
+
+	if os.Getenv("JWT_SECRET") == "" {
+		log.Fatal("JWT_SECRET 未設定")
 	}
 
 	// 初始化資料庫連線
@@ -63,31 +71,38 @@ func init() {
 		os.Getenv("DB_PASSWORD"),
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_NAME"))
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	gormDB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("資料庫連線失敗:", err)
 	}
 
 	// 将db变量赋值给其他文件中的db变量
-	adminDB = db
-	userDB = db
-	organizerDB = db
-	reviewDB = db
-	reviewLikeDB = db
+	dbImpl := &dbImpl{conn: gormDB} // dbConn 是你原本 gorm.Open 回傳的 *gorm.DB
+	db = dbImpl
+	adminDB = dbImpl
+	userDB = dbImpl
+	organizerDB = dbImpl
+	reviewDB = dbImpl
+	reviewLikeDB = dbImpl
 
-	// 自動遷移所有資料表
-	err = db.AutoMigrate(
-		&User{},
-		&Admin{},
-		&Location{},
-		&Activity{},
-		&Match{},
-		&MatchParticipant{},
-		&Review{},
-		&ReviewLike{},
-	)
-	if err != nil {
-		log.Fatal("資料表遷移失敗:", err)
+	var migrateOn, _ = strconv.ParseBool(os.Getenv("AUTO_MIGRATE"))
+	if migrateOn {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		// 自動遷移所有資料表
+		if err := db.WithContext(ctx).AutoMigrate(
+			&User{},
+			&Admin{},
+			&Location{},
+			&Activity{},
+			&Match{},
+			&MatchParticipant{},
+			&Review{},
+			&ReviewLike{},
+		); err != nil {
+			log.Fatal("資料表遷移失敗:", err)
+		}
 	}
 
 	// 設定 OAuth 提供者
@@ -131,12 +146,16 @@ func init() {
 
 	store = sessions.NewCookieStore(authKey, encryptionKey)
 
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7,
+		HttpOnly: true,
+		Secure:   os.Getenv("SECURE_COOKIE") == "true",
+		SameSite: http.SameSiteLaxMode,
+	}
+
 	gothic.Store = store
 }
-
-
-
-
 
 // sessionsMiddleware 将 session 存储在 context 中
 func sessionsMiddleware() gin.HandlerFunc {
@@ -176,9 +195,18 @@ func main() {
 	}
 
 	r := gin.Default()
+	r.Use(cors.Default())
+	// 生產環境請鎖域：
+	// config := cors.Config{
+	// 	AllowOrigins: []string{"https://yourdomain.com"},
+	// 	AllowCredentials: true,
+	// }
+	// r.Use(cors.New(config))
 
 	// 添加Swagger路由
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	if os.Getenv("GIN_MODE") != "release" {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	// 設定 session middleware
 	r.Use(sessionsMiddleware())
@@ -284,7 +312,9 @@ func oauthCallback(c *gin.Context) {
 // @Router /logout [get]
 func logout(c *gin.Context) {
 	session := c.MustGet("session").(*sessions.Session)
-	session.Options.MaxAge = -1 // 刪除 session
+	// session.Options.MaxAge = -1 // 刪除 session
+	session.Options.MaxAge = 0
+	session.Options.Path = "/"
 	session.Save(c.Request, c.Writer)
 	c.Redirect(http.StatusTemporaryRedirect, "/")
 }
@@ -393,6 +423,9 @@ func generateJWTToken(user *User) (string, error) {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		return "", fmt.Errorf("JWT_SECRET 环境变量未设置")
+	}
+	if len(jwtSecret) < 32 {
+		log.Fatal("JWT_SECRET 長度不足 32 byte")
 	}
 
 	// 建立 claims
