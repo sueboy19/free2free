@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -94,7 +93,7 @@ func TestFullAPIFlow(t *testing.T) {
 	t.Run("OAuthEndpoints", func(t *testing.T) {
 		testAPIEndpoint(t, router, "GET", "/auth/facebook", nil, http.StatusTemporaryRedirect)
 		fmt.Println("✓ Facebook OAuth端點測試通過")
-		
+
 		testAPIEndpoint(t, router, "GET", "/auth/instagram", nil, http.StatusTemporaryRedirect)
 		fmt.Println("✓ Instagram OAuth端點測試通過")
 	})
@@ -173,7 +172,10 @@ func TestFullAPIFlow(t *testing.T) {
 // TestDatabaseConnection 測試資料庫連接
 func TestDatabaseConnection(t *testing.T) {
 	// 測試資料庫連接是否正常
-	sqlDB, err := db.DB()
+	if err := InitDB(); err != nil {
+		t.Fatalf("初始化資料庫失敗: %v", err)
+	}
+	sqlDB, err := GetDB().DB()
 	if err != nil {
 		t.Fatalf("獲取資料庫連接失敗: %v", err)
 	}
@@ -189,28 +191,3 @@ func TestDatabaseConnection(t *testing.T) {
 }
 
 // InitTestMain 是測試的入口點
-func InitTestMain(m *testing.M) {
-	// 初始化資料庫連接
-	if err := initDatabase(); err != nil {
-		fmt.Printf("初始化資料庫失敗: %v\n", err)
-		os.Exit(1)
-	}
-
-	// 運行測試
-	code := m.Run()
-
-	// 清理資源
-	sqlDB, _ := db.DB()
-	if sqlDB != nil {
-		sqlDB.Close()
-	}
-
-	os.Exit(code)
-}
-
-// initDatabase 初始化資料庫連接
-func initDatabase() error {
-	// 在測試環境中，我們可以使用內存資料庫或者連接到測試資料庫
-	// 這裡我們簡化處理，假設資料庫已經在docker-compose中啟動
-	return nil
-}

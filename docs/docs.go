@@ -445,6 +445,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/token": {
+            "get": {
+                "description": "將現有的 session 交換為 JWT token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "認證"
+                ],
+                "summary": "交換 session for JWT token",
+                "responses": {
+                    "200": {
+                        "description": "JWT token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "未登入",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/{provider}": {
             "get": {
                 "description": "開始 Facebook 或 Instagram OAuth 流程",
@@ -473,6 +505,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    "500": {
+                        "description": "OAuth 開始失敗",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -500,19 +538,23 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "302": {
-                        "description": "重定向到首頁",
+                    "200": {
+                        "description": "使用者資訊和 JWT token",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "無效的提供者",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "OAuth 回調錯誤",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/main.ErrorResponse"
                         }
                     }
                 }
@@ -536,6 +578,12 @@ const docTemplate = `{
                         "description": "重定向到首頁",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "登出失敗",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
                         }
                     }
                 }
@@ -667,7 +715,12 @@ const docTemplate = `{
         },
         "/profile": {
             "get": {
-                "description": "取得使用者資訊",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "取得使用者資訊 (支援 session 和 JWT token 認證)",
                 "consumes": [
                     "application/json"
                 ],
@@ -688,19 +741,13 @@ const docTemplate = `{
                     "401": {
                         "description": "未登入",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/main.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "無法取得使用者資訊",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/main.ErrorResponse"
                         }
                     }
                 }
@@ -1099,6 +1146,17 @@ const docTemplate = `{
                 }
             }
         },
+        "main.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
         "main.Location": {
             "description": "地點資訊",
             "type": "object",
@@ -1253,6 +1311,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "is_admin": {
+                    "description": "添加管理員標記",
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -1266,6 +1328,14 @@ const docTemplate = `{
                     "type": "integer"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "輸入 'Bearer \u0026lt;JWT token\u0026gt;' 進行認證。可以先透過 Facebook 登入取得 token。",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

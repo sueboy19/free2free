@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: free2free-mariadb-staging
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: free2free_staging
+      MYSQL_USER: free2free_user
+      MYSQL_PASSWORD: free2free_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_staging_data:/var/lib/mysql
+    env_file:
+      - .env.staging
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: free2free-app-staging
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mariadb
+    env_file:
+      - .env.staging
+    volumes:
+      - .:/app  # 為了熱重載，如果需要；生產中可移除
+
+volumes:
+  mariadb_staging_data:

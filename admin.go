@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -57,16 +58,14 @@ func AdminAuthMiddleware() gin.HandlerFunc {
 func isAuthenticatedAdmin(c *gin.Context) bool {
 	// 在這個簡化的實作中，我們假設 userID 為 1 的使用者是管理員
 	// 實際應用中應該有一個管理員表或管理員標記欄位
-	
+
 	// 取得已認證的使用者
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
 		return false
 	}
-	
-	// 這裡簡化處理，假設 ID 為 1 的使用者是管理員
-	// 實際應用中應該檢查管理員表或使用者的管理員標記
-	return user.ID == 1
+
+	return user.IsAdmin
 }
 
 // SetupAdminRoutes 設定管理後台路由
@@ -102,7 +101,7 @@ func SetupAdminRoutes(r *gin.Engine) {
 func listActivities(c *gin.Context) {
 	var activities []Activity
 	if err := adminDB.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得活動列表"})
+		SendError(c, http.StatusInternalServerError, "無法取得活動列表")
 		return
 	}
 
@@ -124,39 +123,39 @@ func listActivities(c *gin.Context) {
 func createActivity(c *gin.Context) {
 	var activity Activity
 	if err := c.ShouldBindJSON(&activity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的請求資料"})
+		SendError(c, http.StatusBadRequest, "無效的請求資料")
 		return
 	}
 
 	// 驗證必要欄位
 	if activity.Title == "" || activity.TargetCount <= 0 || activity.LocationID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "標題、目標人數和地點為必填欄位"})
+		SendError(c, http.StatusBadRequest, "標題、目標人數和地點為必填欄位")
 		return
 	}
 
 	// 檢查地點是否存在
 	var location Location
 	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的地點不存在"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			SendError(c, http.StatusBadRequest, "指定的地點不存在")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法驗證地點"})
+		SendError(c, http.StatusInternalServerError, "無法驗證地點")
 		return
 	}
 
 	// 從認證資訊取得使用者 ID
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		SendError(c, http.StatusUnauthorized, "未登入")
 		return
 	}
-	
+
 	// 設定活動建立者為當前使用者
 	activity.CreatedBy = user.ID
 
 	if err := adminDB.Create(&activity).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立活動"})
+		SendError(c, http.StatusInternalServerError, "無法建立活動")
 		return
 	}
 
@@ -179,36 +178,36 @@ func createActivity(c *gin.Context) {
 func updateActivity(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的活動 ID"})
+		SendError(c, http.StatusBadRequest, "無效的活動 ID")
 		return
 	}
 
 	var activity Activity
 	if err := c.ShouldBindJSON(&activity); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的請求資料"})
+		SendError(c, http.StatusBadRequest, "無效的請求資料")
 		return
 	}
 
 	// 驗證必要欄位
 	if activity.Title == "" || activity.TargetCount <= 0 || activity.LocationID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "標題、目標人數和地點為必填欄位"})
+		SendError(c, http.StatusBadRequest, "標題、目標人數和地點為必填欄位")
 		return
 	}
 
 	// 檢查地點是否存在
 	var location Location
 	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的地點不存在"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			SendError(c, http.StatusBadRequest, "指定的地點不存在")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法驗證地點"})
+		SendError(c, http.StatusInternalServerError, "無法驗證地點")
 		return
 	}
 
 	// 更新活動
 	if err := adminDB.Model(&Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新活動"})
+		SendError(c, http.StatusInternalServerError, "無法更新活動")
 		return
 	}
 
@@ -231,12 +230,12 @@ func updateActivity(c *gin.Context) {
 func deleteActivity(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的活動 ID"})
+		SendError(c, http.StatusBadRequest, "無效的活動 ID")
 		return
 	}
 
 	if err := adminDB.Delete(&Activity{}, id).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法刪除活動"})
+		SendError(c, http.StatusInternalServerError, "無法刪除活動")
 		return
 	}
 
@@ -256,7 +255,7 @@ func deleteActivity(c *gin.Context) {
 func listLocations(c *gin.Context) {
 	var locations []Location
 	if err := adminDB.Order("id DESC").Find(&locations).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法取得地點列表"})
+		SendError(c, http.StatusInternalServerError, "無法取得地點列表")
 		return
 	}
 
@@ -278,18 +277,18 @@ func listLocations(c *gin.Context) {
 func createLocation(c *gin.Context) {
 	var location Location
 	if err := c.ShouldBindJSON(&location); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的請求資料"})
+		SendError(c, http.StatusBadRequest, "無效的請求資料")
 		return
 	}
 
 	// 驗證必要欄位
 	if location.Name == "" || location.Address == "" || location.Latitude == 0 || location.Longitude == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "名稱、地址和座標為必填欄位"})
+		SendError(c, http.StatusBadRequest, "名稱、地址和座標為必填欄位")
 		return
 	}
 
 	if err := adminDB.Create(&location).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立地點"})
+		SendError(c, http.StatusInternalServerError, "無法建立地點")
 		return
 	}
 
@@ -312,25 +311,25 @@ func createLocation(c *gin.Context) {
 func updateLocation(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的地點 ID"})
+		SendError(c, http.StatusBadRequest, "無效的地點 ID")
 		return
 	}
 
 	var location Location
 	if err := c.ShouldBindJSON(&location); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的請求資料"})
+		SendError(c, http.StatusBadRequest, "無效的請求資料")
 		return
 	}
 
 	// 驗證必要欄位
 	if location.Name == "" || location.Address == "" || location.Latitude == 0 || location.Longitude == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "名稱、地址和座標為必填欄位"})
+		SendError(c, http.StatusBadRequest, "名稱、地址和座標為必填欄位")
 		return
 	}
 
 	// 更新地點
 	if err := adminDB.Model(&Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法更新地點"})
+		SendError(c, http.StatusInternalServerError, "無法更新地點")
 		return
 	}
 
@@ -353,12 +352,12 @@ func updateLocation(c *gin.Context) {
 func deleteLocation(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的地點 ID"})
+		SendError(c, http.StatusBadRequest, "無效的地點 ID")
 		return
 	}
 
 	if err := adminDB.Delete(&Location{}, id).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法刪除地點"})
+		SendError(c, http.StatusInternalServerError, "無法刪除地點")
 		return
 	}
 

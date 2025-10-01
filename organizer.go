@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -42,7 +43,13 @@ func isMatchOrganizer(c *gin.Context, matchID int64) bool {
 	// 檢查配對局是否存在且開局者為當前使用者
 	var match Match
 	err = organizerDB.Where("id = ? AND organizer_id = ?", matchID, user.ID).First(&match).Error
-	return err == nil
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false
+	}
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // SetupOrganizerRoutes 設定開局者路由
@@ -73,30 +80,30 @@ func SetupOrganizerRoutes(r *gin.Engine) {
 func approveParticipant(c *gin.Context) {
 	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的配對局 ID"})
+		SendError(c, http.StatusBadRequest, "無效的配對局 ID")
 		return
 	}
 
 	participantID, err := strconv.ParseInt(c.Param("participant_id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的參與者 ID"})
+		SendError(c, http.StatusBadRequest, "無效的參與者 ID")
 		return
 	}
 
 	// 檢查參與者是否屬於此配對局
 	var participant MatchParticipant
 	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的參與者不存在或不屬於此配對局"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			SendError(c, http.StatusBadRequest, "指定的參與者不存在或不屬於此配對局")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法驗證參與者"})
+		SendError(c, http.StatusInternalServerError, "無法驗證參與者")
 		return
 	}
 
 	// 更新參與者狀態為 approved
 	if err := organizerDB.Model(&participant).Update("status", "approved").Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法審核通過參與者"})
+		SendError(c, http.StatusInternalServerError, "無法審核通過參與者")
 		return
 	}
 
@@ -120,30 +127,30 @@ func approveParticipant(c *gin.Context) {
 func rejectParticipant(c *gin.Context) {
 	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的配對局 ID"})
+		SendError(c, http.StatusBadRequest, "無效的配對局 ID")
 		return
 	}
 
 	participantID, err := strconv.ParseInt(c.Param("participant_id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的參與者 ID"})
+		SendError(c, http.StatusBadRequest, "無效的參與者 ID")
 		return
 	}
 
 	// 檢查參與者是否屬於此配對局
 	var participant MatchParticipant
 	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "指定的參與者不存在或不屬於此配對局"})
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			SendError(c, http.StatusBadRequest, "指定的參與者不存在或不屬於此配對局")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法驗證參與者"})
+		SendError(c, http.StatusInternalServerError, "無法驗證參與者")
 		return
 	}
 
 	// 更新參與者狀態為 rejected
 	if err := organizerDB.Model(&participant).Update("status", "rejected").Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法審核拒絕參與者"})
+		SendError(c, http.StatusInternalServerError, "無法審核拒絕參與者")
 		return
 	}
 

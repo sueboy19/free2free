@@ -18,6 +18,13 @@ definitions:
       title:
         type: string
     type: object
+  main.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+    type: object
   main.Location:
     description: 地點資訊
     properties:
@@ -122,6 +129,9 @@ definitions:
         type: string
       id:
         type: integer
+      is_admin:
+        description: 添加管理員標記
+        type: boolean
       name:
         type: string
       social_id:
@@ -430,6 +440,10 @@ paths:
           description: 重定向到 OAuth 提供者
           schema:
             type: string
+        "500":
+          description: OAuth 開始失敗
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
       summary: 開始 OAuth 流程
       tags:
       - 認證
@@ -447,17 +461,41 @@ paths:
       produces:
       - application/json
       responses:
-        "302":
-          description: 重定向到首頁
+        "200":
+          description: 使用者資訊和 JWT token
           schema:
-            type: string
+            additionalProperties: true
+            type: object
+        "400":
+          description: 無效的提供者
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
         "500":
           description: OAuth 回調錯誤
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: OAuth 回調處理
+      tags:
+      - 認證
+  /auth/token:
+    get:
+      consumes:
+      - application/json
+      description: 將現有的 session 交換為 JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: OAuth 回調處理
+        "401":
+          description: 未登入
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: 交換 session for JWT token
       tags:
       - 認證
   /logout:
@@ -472,6 +510,10 @@ paths:
           description: 重定向到首頁
           schema:
             type: string
+        "500":
+          description: 登出失敗
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
       summary: 處理登出
       tags:
       - 認證
@@ -559,7 +601,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 取得使用者資訊
+      description: 取得使用者資訊 (支援 session 和 JWT token 認證)
       produces:
       - application/json
       responses:
@@ -570,15 +612,13 @@ paths:
         "401":
           description: 未登入
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/main.ErrorResponse'
         "500":
           description: 無法取得使用者資訊
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
       summary: 取得使用者資訊
       tags:
       - 使用者
@@ -813,4 +853,10 @@ paths:
       summary: 取得過去參與的配對列表
       tags:
       - 使用者
+securityDefinitions:
+  ApiKeyAuth:
+    description: 輸入 'Bearer &lt;JWT token&gt;' 進行認證。可以先透過 Facebook 登入取得 token。
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -54,6 +55,17 @@ type User struct {
 	UpdatedAt      int64  `gorm:"type:bigint;autoCreateTime:milli" json:"updated_at"`
 }
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+	Code  int    `json:"code"`
+}
+
+func SendError(c *gin.Context, code int, message string) {
+	c.JSON(code, ErrorResponse{
+		Error: message,
+		Code:  code,
+	})
+}
 func init() {
 	// 載入 .env 檔案
 	if err := godotenv.Load(); err != nil {
@@ -162,7 +174,8 @@ func sessionsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session, err := store.Get(c.Request, "free2free-session")
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "无法获取 session"})
+			SendError(c, http.StatusInternalServerError, "无法获取 session")
+			return
 		}
 		c.Set("session", session)
 		c.Next()
@@ -211,6 +224,20 @@ func main() {
 	// 設定 session middleware
 	r.Use(sessionsMiddleware())
 
+	// 全域錯誤中間件
+	r.Use(func(c *gin.Context) {
+		c.Next()
+
+		if len(c.Errors) > 0 {
+			err := c.Errors.Last()
+			if httpErr, ok := err.Err.(interface{ Status() int }); ok {
+				SendError(c, httpErr.Status(), err.Error())
+			} else {
+				SendError(c, http.StatusInternalServerError, "內部伺服器錯誤")
+			}
+		}
+	})
+
 	// OAuth 認證路由
 	r.GET("/auth/:provider", oauthBegin)
 	r.GET("/auth/:provider/callback", oauthCallback)
@@ -251,6 +278,7 @@ func main() {
 // @Produce json
 // @Param provider path string true "OAuth 提供者 (facebook 或 instagram)"
 // @Success 302 {string} string "重定向到 OAuth 提供者"
+// @Failure 500 {object} ErrorResponse "OAuth 開始失敗"
 // @Router /auth/{provider} [get]
 func oauthBegin(c *gin.Context) {
 	// 使用 gothic 來處理 OAuth 流程
@@ -265,20 +293,21 @@ func oauthBegin(c *gin.Context) {
 // @Produce json
 // @Param provider path string true "OAuth 提供者 (facebook 或 instagram)"
 // @Success 200 {object} map[string]interface{} "使用者資訊和 JWT token"
-// @Failure 500 {object} map[string]string "OAuth 回調錯誤"
+// @Failure 400 {object} ErrorResponse "無效的提供者"
+// @Failure 500 {object} ErrorResponse "OAuth 回調錯誤"
 // @Router /auth/{provider}/callback [get]
 func oauthCallback(c *gin.Context) {
 	// 使用 gothic 取得使用者資訊
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	// 儲存或更新使用者資訊到資料庫
 	dbUser, err := saveOrUpdateUser(user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "儲存使用者資訊失敗"})
+		SendError(c, http.StatusInternalServerError, "儲存使用者資訊失敗")
 		return
 	}
 
@@ -291,7 +320,7 @@ func oauthCallback(c *gin.Context) {
 	// 生成 JWT token
 	tokenString, err := generateJWTToken(dbUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成 token 失敗"})
+		SendError(c, http.StatusInternalServerError, "生成 token 失敗")
 		return
 	}
 
@@ -309,6 +338,7 @@ func oauthCallback(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Success 302 {string} string "重定向到首頁"
+// @Failure 500 {object} ErrorResponse "登出失敗"
 // @Router /logout [get]
 func logout(c *gin.Context) {
 	session := c.MustGet("session").(*sessions.Session)
@@ -326,20 +356,20 @@ func logout(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Success 200 {object} map[string]string "JWT token"
-// @Failure 401 {object} map[string]string "未登入"
+// @Failure 401 {object} ErrorResponse "未登入"
 // @Router /auth/token [get]
 func exchangeToken(c *gin.Context) {
 	// 取得已認證的使用者
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		SendError(c, http.StatusUnauthorized, "未登入")
 		return
 	}
 
 	// 生成 JWT token
 	tokenString, err := generateJWTToken(user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成 token 失敗"})
+		SendError(c, http.StatusInternalServerError, "生成 token 失敗")
 		return
 	}
 
@@ -354,15 +384,15 @@ func exchangeToken(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Success 200 {object} User
-// @Failure 401 {object} map[string]string "未登入"
-// @Failure 500 {object} map[string]string "無法取得使用者資訊"
+// @Failure 401 {object} ErrorResponse "未登入"
+// @Failure 500 {object} ErrorResponse "無法取得使用者資訊"
 // @Router /profile [get]
 // @Security ApiKeyAuth
 func profile(c *gin.Context) {
 	// 取得已認證的使用者
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		SendError(c, http.StatusUnauthorized, "未登入")
 		return
 	}
 
@@ -378,10 +408,10 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 
 	if err != nil && err != gorm.ErrRecordNotFound {
 		// 查詢出錯
-		return nil, err
+		return nil, fmt.Errorf("database query error: %w", err)
 	}
 
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// 使用者不存在，建立新使用者
 		user = User{
 			SocialID:       gothUser.UserID,
@@ -393,7 +423,10 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 
 		// 儲存新使用者
 		if err := db.Create(&user).Error; err != nil {
-			return nil, err
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return nil, fmt.Errorf("user already exists: %w", err)
+			}
+			return nil, fmt.Errorf("create user failed: %w", err)
 		}
 	} else {
 		// 使用者已存在，更新資訊
@@ -402,7 +435,7 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 		user.AvatarURL = gothUser.AvatarURL
 
 		if err := db.Save(&user).Error; err != nil {
-			return nil, err
+			return nil, fmt.Errorf("update user failed: %w", err)
 		}
 	}
 
@@ -425,7 +458,7 @@ func generateJWTToken(user *User) (string, error) {
 		return "", fmt.Errorf("JWT_SECRET 环境变量未设置")
 	}
 	if len(jwtSecret) < 32 {
-		log.Fatal("JWT_SECRET 長度不足 32 byte")
+		return "", fmt.Errorf("JWT_SECRET 長度不足 32 byte")
 	}
 
 	// 建立 claims
@@ -472,15 +505,18 @@ func validateJWTToken(tokenString string) (*Claims, error) {
 }
 
 // getAuthenticatedUser 從 context 中取得已認證的使用者
-func getAuthenticatedUser(c *gin.Context) (*User, error) {
+var getAuthenticatedUser func(*gin.Context) (*User, error) = func(c *gin.Context) (*User, error) {
 	// 首先嘗試從 session 取得使用者
 	session := c.MustGet("session").(*sessions.Session)
 	if userID, ok := session.Values["user_id"]; ok {
 		// 從資料庫取得使用者資訊
 		var user User
 		err := db.First(&user, userID).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("user not found")
+		}
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("database error: %w", err)
 		}
 		return &user, nil
 	}
@@ -508,8 +544,11 @@ func getAuthenticatedUser(c *gin.Context) (*User, error) {
 	// 從資料庫取得使用者資訊
 	var user User
 	err = db.First(&user, claims.UserID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("user not found")
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("database error: %w", err)
 	}
 
 	return &user, nil

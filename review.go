@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -60,6 +61,9 @@ func canReviewMatch(c *gin.Context, matchID int64) bool {
 	// 檢查使用者是否參與了指定的配對局
 	var participant MatchParticipant
 	err = reviewDB.Where("match_id = ? AND user_id = ? AND status = ?", matchID, user.ID, "approved").First(&participant).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false
+	}
 	if err != nil {
 		return false
 	}
@@ -67,6 +71,9 @@ func canReviewMatch(c *gin.Context, matchID int64) bool {
 	// 檢查配對局是否已完成
 	var match Match
 	err = reviewDB.Where("id = ? AND status = ?", matchID, "completed").First(&match).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false
+	}
 	if err != nil {
 		return false
 	}
@@ -107,26 +114,26 @@ func SetupReviewRoutes(r *gin.Engine) {
 func createReview(c *gin.Context) {
 	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的配對局 ID"})
+		SendError(c, http.StatusBadRequest, "無效的配對局 ID")
 		return
 	}
 
 	var review Review
 	if err := c.ShouldBindJSON(&review); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "無效的請求資料"})
+		SendError(c, http.StatusBadRequest, "無效的請求資料")
 		return
 	}
 
 	// 驗證必要欄位
 	if review.RevieweeID <= 0 || review.Score < 3 || review.Score > 5 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "被評分者和評分為必填欄位，評分範圍為3-5分"})
+		SendError(c, http.StatusBadRequest, "被評分者和評分為必填欄位，評分範圍為3-5分")
 		return
 	}
 
 	// 從認證資訊取得評分者 ID
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登入"})
+		SendError(c, http.StatusUnauthorized, "未登入")
 		return
 	}
 
@@ -139,19 +146,19 @@ func createReview(c *gin.Context) {
 	err = reviewDB.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?",
 		review.ReviewerID, review.RevieweeID, review.MatchID).First(&existingReview).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法檢查評分記錄"})
+		SendError(c, http.StatusInternalServerError, "無法檢查評分記錄")
 		return
 	}
 
 	// 如果已經評分過，返回錯誤
 	if err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "您已經對此人評分過"})
+		SendError(c, http.StatusBadRequest, "您已經對此人評分過")
 		return
 	}
 
 	// 建立新的評分記錄
 	if err := reviewDB.Create(&review).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "無法建立評分記錄"})
+		SendError(c, http.StatusInternalServerError, "無法建立評分記錄")
 		return
 	}
 
