@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/sessions"
 	"github.com/stretchr/testify/assert"
 
 	"free2free/handlers"
@@ -192,41 +193,28 @@ func initTestDB() error {
 
 // testSessionsMiddleware 模擬 session 中介層，用於測試
 func testSessionsMiddleware() gin.HandlerFunc {
+	// Create a real session store for testing
+	store := sessions.NewCookieStore([]byte("test-secret-for-session-testing-32-bytes"))
+	
 	return func(c *gin.Context) {
-		// 為測試目的，創建一個模擬的 session
-		// This is important to prevent the "interface conversion: interface {} is nil, not *sessions.Session" error
-		c.Set("session", &MockSession{})
+		// Create a new session using the real sessions package
+		session, err := store.Get(c.Request, "free2free-session")
+		if err != nil {
+			// If there's an error creating the session, create a default one
+			session = &sessions.Session{
+				Values: make(map[interface{}]interface{}),
+				Options: &sessions.Options{
+					Path:     "/",
+					MaxAge:   86400 * 7,
+					HttpOnly: true,
+					Secure:   false,
+					SameSite: http.SameSiteLaxMode,
+				},
+			}
+		}
+		
+		// Set the session in the context so handlers can access it
+		c.Set("session", session)
 		c.Next()
-	}
-}
-
-// MockSession is a mock implementation of sessions.Session for testing
-type MockSession struct{}
-
-func (m *MockSession) Get(key interface{}) interface{} {
-	// Return a mock user ID if the key is "user_id" to allow basic auth checks
-	if key == "user_id" {
-		return int64(1) // Mock user ID
-	}
-	return nil
-}
-
-func (m *MockSession) Set(key interface{}, val interface{}) {
-	// Do nothing for testing
-}
-
-func (m *MockSession) Delete(key interface{}) {
-	// Do nothing for testing
-}
-
-func (m *MockSession) Save() error {
-	// Do nothing for testing
-	return nil
-}
-
-func (m *MockSession) Values() map[interface{}]interface{} {
-	// Return a mock values map that includes a user_id
-	return map[interface{}]interface{}{
-		"user_id": int64(1),
 	}
 }

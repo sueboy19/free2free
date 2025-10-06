@@ -56,3 +56,8 @@ func (g *ActualGormDB) Save(value interface{}) error {
 }
 
 var GlobalDB *ActualGormDB
+
+// For testing purposes - allows setting a mock database
+func SetGlobalDB(db *ActualGormDB) {
+	GlobalDB = db
+}

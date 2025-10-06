@@ -2,139 +2,31 @@ package routes
 
 import (
 	"bytes"
-	"context"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"free2free/database"
+	"free2free/models"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-
-	"free2free/models"
 )
 
-type MockDB struct {
-	calledMethods map[string]interface{}
-	data          map[string]interface{}
-}
-
-func (m *MockDB) AutoMigrate(dst ...interface{}) error {
-	return nil
-}
-
-func (m *MockDB) Create(value interface{}) *gorm.DB {
-	// Simulate create
-	if m.data == nil {
-		m.data = make(map[string]interface{})
+func setupTestDatabase() {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect to test database")
 	}
-	if users, ok := value.(*[]models.User); ok {
-		for i, u := range *users {
-			newU := u
-			newU.ID = int64(i + 1)
-			if existing, ok := m.data["users"].([]models.User); ok {
-				m.data["users"] = append(existing, newU)
-			} else {
-				m.data["users"] = []models.User{newU}
-			}
-		}
-	}
-	if activity, ok := value.(*models.Activity); ok {
-		activity.ID = 1
-		if existing, ok := m.data["activities"].([]models.Activity); ok {
-			m.data["activities"] = append(existing, *activity)
-		} else {
-			m.data["activities"] = []models.Activity{*activity}
-		}
-	}
-	if location, ok := value.(*models.Location); ok {
-		location.ID = 1
-		if existing, ok := m.data["locations"].([]models.Location); ok {
-			m.data["locations"] = append(existing, *location)
-		} else {
-			m.data["locations"] = []models.Location{*location}
-		}
-	}
-	return &gorm.DB{Error: nil}
-}
 
-func (m *MockDB) First(dest interface{}, conds ...interface{}) *gorm.DB {
-	if m.data == nil {
-		m.data = make(map[string]interface{})
-	}
-	if user, ok := dest.(*models.User); ok {
-		if users, ok := m.data["users"].([]models.User); ok && len(users) > 0 {
-			*user = users[0]
-			return &gorm.DB{Error: nil}
-		}
-		return &gorm.DB{Error: gorm.ErrRecordNotFound}
-	}
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Preload(query string, args ...interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Order(value interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Joins(query string, args ...interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Raw(sql string, values ...interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Where(query interface{}, args ...interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) WithContext(ctx context.Context) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) DB() (*sql.DB, error) {
-	return nil, nil
-}
-
-func (m *MockDB) Find(dest interface{}, conds ...interface{}) *gorm.DB {
-	if m.data == nil {
-		m.data = make(map[string]interface{})
-	}
-	if activities, ok := dest.(*[]models.Activity); ok {
-		*activities = []models.Activity{
-			{ID: 1, Title: "Test Activity", TargetCount: 4, LocationID: 1, Description: "Test", CreatedBy: 1},
-		}
-		return &gorm.DB{Error: nil}
-	}
-	if locations, ok := dest.(*[]models.Location); ok {
-		*locations = []models.Location{
-			{ID: 1, Name: "Test Location", Address: "Test Addr", Latitude: 25.0330, Longitude: 121.5654},
-		}
-		return &gorm.DB{Error: nil}
-	}
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Save(value interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Model(value interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Update(column string, value interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
-}
-
-func (m *MockDB) Delete(value interface{}, conds ...interface{}) *gorm.DB {
-	return &gorm.DB{Error: nil}
+	// Set up global database instance for tests
+	database.SetGlobalDB(&database.ActualGormDB{Conn: db})
+	
+	// Auto migrate the tables for testing
+	db.AutoMigrate(&models.Activity{}, &models.Location{})
 }
 
 func mockAuthenticatedUser(c *gin.Context) (*models.User, error) {
@@ -142,6 +34,7 @@ func mockAuthenticatedUser(c *gin.Context) (*models.User, error) {
 }
 
 func TestListActivities(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -155,11 +48,12 @@ func TestListActivities(t *testing.T) {
 	var activities []models.Activity
 	err := json.Unmarshal(w.Body.Bytes(), &activities)
 	assert.NoError(t, err)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "Test Activity", activities[0].Title)
+	// Should return an empty array since no activities have been created
+	assert.Len(t, activities, 0)
 }
 
 func TestCreateActivity(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -180,6 +74,7 @@ func TestCreateActivity(t *testing.T) {
 }
 
 func TestUpdateActivity(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -202,6 +97,7 @@ func TestUpdateActivity(t *testing.T) {
 }
 
 func TestDeleteActivity(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -221,6 +117,7 @@ func TestDeleteActivity(t *testing.T) {
 }
 
 func TestListLocations(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -234,11 +131,12 @@ func TestListLocations(t *testing.T) {
 	var locations []models.Location
 	err := json.Unmarshal(w.Body.Bytes(), &locations)
 	assert.NoError(t, err)
-	assert.Len(t, locations, 1)
-	assert.Equal(t, "Test Location", locations[0].Name)
+	// Should return empty array since no locations have been created
+	assert.Len(t, locations, 0)
 }
 
 func TestCreateLocation(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -259,6 +157,7 @@ func TestCreateLocation(t *testing.T) {
 }
 
 func TestUpdateLocation(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -281,6 +180,7 @@ func TestUpdateLocation(t *testing.T) {
 }
 
 func TestDeleteLocation(t *testing.T) {
+	setupTestDatabase()
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

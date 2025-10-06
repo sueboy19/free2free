@@ -42,10 +42,20 @@ func TestSendError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			c, _ := gin.CreateTestContext(w)
+			_, router := gin.CreateTestContext(w)
+			
+			// Add the error handling middleware
+			router.Use(middleware.ErrorHandler())
+			
+			// Create a simple handler that adds an error
+			router.GET("/test", func(c *gin.Context) {
+				c.Error(errors.NewAppError(tt.code, tt.message))
+				// Don't send any response here; let the error handler do it
+			})
 
-			// 直接設置錯誤，讓 ErrorHandler 處理
-			c.Error(errors.NewAppError(tt.code, tt.message))
+			// Make a request to trigger the error handling
+			req := httptest.NewRequest("GET", "/test", nil)
+			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.expectedCode, w.Code)
 			assert.Equal(t, tt.expectedBody, w.Body.String())

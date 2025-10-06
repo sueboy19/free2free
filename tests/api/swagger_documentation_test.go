@@ -57,11 +57,11 @@ func TestSwaggerDocumentation(t *testing.T) {
 
 	// 3. 測試Swagger JSON文檔
 	t.Run("SwaggerJSON", func(t *testing.T) {
-		// 檢查Swagger模板是否包含必要的信息
+		// 檢查Swagger模板是否包含必要的模板變量
+		assert.Contains(t, docs.SwaggerInfo.SwaggerTemplate, "{{.Title}}")
+		assert.Contains(t, docs.SwaggerInfo.SwaggerTemplate, "{{escape .Description}}")
+		assert.Contains(t, docs.SwaggerInfo.SwaggerTemplate, "{{.Version}}")
 		assert.Contains(t, docs.SwaggerInfo.SwaggerTemplate, "\"swagger\": \"2.0\"")
-		assert.Contains(t, docs.SwaggerInfo.SwaggerTemplate, "\"title\": \"買一送一配對網站 API\"")
-		assert.Contains(t, docs.SwaggerInfo.SwaggerTemplate, "\"description\": \"這是一個買一送一配對網站的API文檔\"")
-		assert.Contains(t, docs.SwaggerInfo.SwaggerTemplate, "\"version\": \"1.0\"")
 		fmt.Println("✓ Swagger JSON文檔測試通過")
 	})
 

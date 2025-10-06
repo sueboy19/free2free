@@ -1,6 +1,7 @@
 package unit
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -21,7 +22,15 @@ type MockClaims struct {
 
 // mockGenerateTokens generates mock JWT tokens for testing
 func mockGenerateTokens(user *models.User) (string, string, error) {
-	jwtSecret := "test-secret-key-32-chars-long-enough!!"
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "test-secret-key-32-chars-long-enough!!" // default for tests
+	}
+	
+	// Validate secret length (same validation as in real function)
+	if len(jwtSecret) < 32 {
+		return "", "", fmt.Errorf("JWT_SECRET 長度不足 32 byte")
+	}
 	
 	// Create access token
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, MockClaims{
