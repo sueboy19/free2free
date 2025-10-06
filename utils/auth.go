@@ -18,6 +18,14 @@ import (
 	apperrors "free2free/errors"
 )
 
+// getDB returns the global database connection for utils package
+func getDBForUtils() *gorm.DB {
+	if database.GlobalDB == nil || database.GlobalDB.Conn == nil {
+		panic("Database not initialized. Call database initialization first.")
+	}
+	return database.GlobalDB.Conn
+}
+
 // GetAuthenticatedUser 從 context 中取得已認證的使用者
 func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	// 首先嘗試從 session 取得使用者
@@ -25,7 +33,7 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	if userID, ok := session.Values["user_id"]; ok {
 		// 從資料庫取得使用者資訊
 		var user models.User
-		err := database.GlobalDB.Conn.First(&user, userID).Error
+		err := getDBForUtils().First(&user, userID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 		}
@@ -57,7 +65,7 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 
 	// 從資料庫取得使用者資訊
 	var user models.User
-	err = database.GlobalDB.Conn.First(&user, claims.UserID).Error
+	err = getDBForUtils().First(&user, claims.UserID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 	}

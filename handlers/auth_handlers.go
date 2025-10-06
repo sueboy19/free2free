@@ -25,15 +25,15 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var (
-	db *gorm.DB
-)
-
 // Session store
 var store *sessions.CookieStore
 
-func init() {
-	db = database.GlobalDB.Conn
+// getDB returns the global database connection
+func getDB() *gorm.DB {
+	if database.GlobalDB == nil || database.GlobalDB.Conn == nil {
+		panic("Database not initialized. Call database initialization first.")
+	}
+	return database.GlobalDB.Conn
 }
 
 func SetStore(s *sessions.CookieStore) {
@@ -82,7 +82,7 @@ func OauthCallback(c *gin.Context) {
 	}
 
 	// Delete existing refresh tokens for this user (revoke old ones)
-	db.Where("user_id = ?", dbUser.ID).Delete(&models.RefreshToken{})
+	getDB().Where("user_id = ?", dbUser.ID).Delete(&models.RefreshToken{})
 
 	// 將使用者資訊存入 session
 	session := c.MustGet("session").(*sessions.Session)
@@ -104,7 +104,7 @@ func OauthCallback(c *gin.Context) {
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 		CreatedAt: time.Now(),
 	}
-	if err := db.Create(refreshRecord).Error; err != nil {
+	if err := getDB().Create(refreshRecord).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -128,20 +128,20 @@ func OauthCallback(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "登出失敗"
 // @Router /logout [get]
 func Logout(c *gin.Context) {
-	session := c.MustGet("session").(*sessions.Session)
-	userID, ok := session.Values["user_id"].(int64)
+	s := c.MustGet("session").(*sessions.Session)
+	userID, ok := s.Values["user_id"].(int64)
 	if ok {
 		// Delete refresh tokens for this user
-		if err := db.Where("user_id = ?", userID).Delete(&models.RefreshToken{}).Error; err != nil {
+		if err := getDB().Where("user_id = ?", userID).Delete(&models.RefreshToken{}).Error; err != nil {
 			c.Error(apperrors.MapGORMError(err))
 			// Don't abort, just log
 		}
 	}
 
 	// Clear session
-	session.Options.MaxAge = 0
-	session.Options.Path = "/"
-	session.Save(c.Request, c.Writer)
+	s.Options.MaxAge = 0
+	s.Options.Path = "/"
+	s.Save(c.Request, c.Writer)
 	c.Redirect(http.StatusTemporaryRedirect, "/")
 }
 
@@ -171,7 +171,7 @@ func ExchangeToken(c *gin.Context) {
 
 	// 創建或更新 RefreshToken 記錄 (for exchange, assume create new)
 	// First, delete existing for this user to rotate
-	db.Where("user_id = ?", user.ID).Delete(&models.RefreshToken{})
+	getDB().Where("user_id = ?", user.ID).Delete(&models.RefreshToken{})
 
 	refreshRecord := &models.RefreshToken{
 		UserID:    uint(user.ID),
@@ -179,7 +179,7 @@ func ExchangeToken(c *gin.Context) {
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 		CreatedAt: time.Now(),
 	}
-	if err := db.Create(refreshRecord).Error; err != nil {
+	if err := getDB().Create(refreshRecord).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -219,7 +219,7 @@ func saveOrUpdateUser(gothUser goth.User) (*models.User, error) {
 	var user models.User
 
 	// 檢查使用者是否已存在
-	err := db.Where("social_id = ? AND social_provider = ?", gothUser.UserID, gothUser.Provider).First(&user).Error
+	err := getDB().Where("social_id = ? AND social_provider = ?", gothUser.UserID, gothUser.Provider).First(&user).Error
 
 	if err != nil && err != gorm.ErrRecordNotFound {
 		// 查詢出錯
@@ -244,7 +244,7 @@ func saveOrUpdateUser(gothUser goth.User) (*models.User, error) {
 		}
 
 		// 儲存新使用者
-		if err := db.Create(&user).Error; err != nil {
+		if err := getDB().Create(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return nil, apperrors.MapGORMError(err)
 			}
@@ -271,7 +271,7 @@ func saveOrUpdateUser(gothUser goth.User) (*models.User, error) {
 		user.Email = gothUser.Email
 		user.AvatarURL = gothUser.AvatarURL
 
-		if err := db.Save(&user).Error; err != nil {
+		if err := getDB().Save(&user).Error; err != nil {
 			return nil, apperrors.MapGORMError(err)
 		}
 	}
@@ -364,7 +364,7 @@ func RefreshTokenHandler(c *gin.Context) {
 
 	// Load all active refresh tokens
 	var records []models.RefreshToken
-	if err := db.Where("expires_at > ?", time.Now()).Find(&records).Error; err != nil {
+	if err := getDB().Where("expires_at > ?", time.Now()).Find(&records).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -384,7 +384,7 @@ func RefreshTokenHandler(c *gin.Context) {
 
 	// Get user
 	var user models.User
-	if err := db.First(&user, validRecord.UserID).Error; err != nil {
+	if err := getDB().First(&user, validRecord.UserID).Error; err != nil {
 		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "無法取得使用者"))
 		return
 	}
@@ -397,7 +397,7 @@ func RefreshTokenHandler(c *gin.Context) {
 	}
 
 	// Rotate: delete old
-	if err := db.Delete(validRecord).Error; err != nil {
+	if err := getDB().Delete(validRecord).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -409,7 +409,7 @@ func RefreshTokenHandler(c *gin.Context) {
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 		CreatedAt: time.Now(),
 	}
-	if err := db.Create(newRecord).Error; err != nil {
+	if err := getDB().Create(newRecord).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -453,7 +453,7 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	if userID, ok := session.Values["user_id"]; ok {
 		// 從資料庫取得使用者資訊
 		var user models.User
-		err := db.First(&user, userID).Error
+		err := getDB().First(&user, userID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 		}
@@ -485,7 +485,7 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 
 	// 從資料庫取得使用者資訊
 	var user models.User
-	err = db.First(&user, claims.UserID).Error
+	err = getDB().First(&user, claims.UserID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 	}
