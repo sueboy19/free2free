@@ -26,6 +26,7 @@ import (
 	"free2free/database"
 	"free2free/handlers"
 	"free2free/models"
+	"free2free/routes"
 
 	apperrors "free2free/errors"
 	middlewarepkg "free2free/middleware"
@@ -214,19 +215,19 @@ func main() {
 	r.GET("/profile", handlers.Profile)
 
 	// 設定管理後台路由
-	SetupAdminRoutes(r)
+	routes.SetupAdminRoutes(r)
 
 	// 設定使用者路由
-	SetupUserRoutes(r)
+	routes.SetupUserRoutes(r)
 
 	// 設定開局者路由
-	SetupOrganizerRoutes(r)
+	routes.SetupOrganizerRoutes(r)
 
 	// 設定評分路由
-	SetupReviewRoutes(r)
+	routes.SetupReviewRoutes(r)
 
 	// 設定評論點讚/倒讚路由
-	SetupReviewLikeRoutes(r)
+	routes.SetupReviewLikeRoutes(r)
 
 	// 啟動伺服器
 	r.Run(":8080")
