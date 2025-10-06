@@ -42,7 +42,7 @@ main.go保持內容精簡，不要把所有的程式碼都放在裡面。
 - 增強 JWT 安全機制，包含 refresh token 功能
 - 優化 Docker 生產環境設定
 - 實作完整的 JWT 認證機制支援 Swagger UI 中的 Facebook 登入
-- 整理專案結構，將測試檔案移至 tests/ 目錄，並更新文件和注釋
+- 整理專案結構：建立 tests/ 目錄，將測試文件按類型分類至 unit/, integration/, e2e/, api/, main_tests/ 子目錄中，測試文件改為對應的測試包名稱，並移除多餘的 testutils 目錄
 - 重新評估 approach：保持模組化結構而非將所有代碼合併到 main.go，符合 Go 最佳實踐
 
 ## 目前計劃
@@ -66,6 +66,7 @@ main.go保持內容精簡，不要把所有的程式碼都放在裡面。
 18. [DONE] 更新文件和注釋
 19. [DONE] 保持模組化結構，不將所有代碼合併至 main.go（符合 Go 最佳實踐）
 20. [DONE] 重構 main.go 以使其更加簡潔，將處理函數提取到 handlers 包，將認證功能提取到 utils 包
+21. [DONE] 組織測試程式碼結構，建立 testutils 包和 TESTING.md 文件，保持測試文件符合 Go 慣例
 
 關於用戶在 Swagger 中使用 Facebook 登入的問題，這需要實作一個特殊的認證機制，因為 Swagger UI 本身無法直接處理 OAuth 重定向。通常的做法是：
 1. 在 Swagger 中新增一個 API 金鑰認證選項
@@ -83,4 +84,4 @@ main.go保持內容精簡，不要把所有的程式碼都放在裡面。
 **建議**：提取 models 至獨立包、統一錯誤處理中間件、強化 OAuth 驗證流程、增加更多單元和整合測試、審核 JWT 安全實作。
 
 ## 摘要元數據
-**Update time**: 2025-10-01T15:42:35.780Z
+**Update time**: 2025-10-06T17:59:00.000Z
