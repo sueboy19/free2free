@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"free2free/models"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -110,7 +111,7 @@ func TestE2EFlow(t *testing.T) {
 	t.Run("OAuthEndpoints", func(t *testing.T) {
 		suite.TestAPIEndpoint(t, "GET", "/auth/facebook", nil, http.StatusTemporaryRedirect)
 		fmt.Println("✓ Facebook OAuth端點測試通過")
-		
+
 		suite.TestAPIEndpoint(t, "GET", "/auth/instagram", nil, http.StatusTemporaryRedirect)
 		fmt.Println("✓ Instagram OAuth端點測試通過")
 	})
@@ -163,7 +164,7 @@ func TestE2EFlow(t *testing.T) {
 	// 8. 測試評分端點（應該返回未授權）
 	t.Run("ReviewEndpoints", func(t *testing.T) {
 		// 測試創建評分
-		review := Review{
+		review := models.Review{
 			RevieweeID: 2,
 			Score:      5,
 			Comment:    "測試評分",

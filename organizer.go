@@ -5,8 +5,12 @@ import (
 	"net/http"
 	"strconv"
 
+	apperrors "free2free/errors"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+
+	"free2free/models"
 )
 
 // OrganizerAuthMiddleware 開局者認證中介層
@@ -17,13 +21,13 @@ func OrganizerAuthMiddleware() gin.HandlerFunc {
 		// 為了簡化，這裡假設有一個 isMatchOrganizer 函數
 		matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "無效的配對局 ID"})
+			c.Error(apperrors.NewValidationError("無效的配對局 ID"))
 			c.Abort()
 			return
 		}
 
 		if !isMatchOrganizer(c, matchID) {
-			c.JSON(401, gin.H{"error": "需要開局者權限"})
+			c.Error(apperrors.NewForbiddenError("需要開局者權限"))
 			c.Abort()
 			return
 		}
@@ -41,7 +45,7 @@ func isMatchOrganizer(c *gin.Context, matchID int64) bool {
 	}
 
 	// 檢查配對局是否存在且開局者為當前使用者
-	var match Match
+	var match models.Match
 	err = organizerDB.Where("id = ? AND organizer_id = ?", matchID, user.ID).First(&match).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false
@@ -78,32 +82,34 @@ func SetupOrganizerRoutes(r *gin.Engine) {
 // @Router /organizer/matches/{id}/participants/{participant_id}/approve [put]
 // @Security ApiKeyAuth
 func approveParticipant(c *gin.Context) {
-	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的配對局 ID")
+	idStr := c.Param("id")
+	matchID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || matchID <= 0 {
+		c.Error(apperrors.NewValidationError("無效的配對局 ID"))
 		return
 	}
 
-	participantID, err := strconv.ParseInt(c.Param("participant_id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的參與者 ID")
+	participantIdStr := c.Param("participant_id")
+	participantID, err := strconv.ParseInt(participantIdStr, 10, 64)
+	if err != nil || participantID <= 0 {
+		c.Error(apperrors.NewValidationError("無效的參與者 ID"))
 		return
 	}
 
 	// 檢查參與者是否屬於此配對局
-	var participant MatchParticipant
+	var participant models.MatchParticipant
 	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			SendError(c, http.StatusBadRequest, "指定的參與者不存在或不屬於此配對局")
+			c.Error(apperrors.NewValidationError("指定的參與者不存在或不屬於此配對局"))
 			return
 		}
-		SendError(c, http.StatusInternalServerError, "無法驗證參與者")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 更新參與者狀態為 approved
 	if err := organizerDB.Model(&participant).Update("status", "approved").Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法審核通過參與者")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -125,32 +131,34 @@ func approveParticipant(c *gin.Context) {
 // @Router /organizer/matches/{id}/participants/{participant_id}/reject [put]
 // @Security ApiKeyAuth
 func rejectParticipant(c *gin.Context) {
-	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的配對局 ID")
+	idStr := c.Param("id")
+	matchID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || matchID <= 0 {
+		c.Error(apperrors.NewValidationError("無效的配對局 ID"))
 		return
 	}
 
-	participantID, err := strconv.ParseInt(c.Param("participant_id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的參與者 ID")
+	participantIdStr := c.Param("participant_id")
+	participantID, err := strconv.ParseInt(participantIdStr, 10, 64)
+	if err != nil || participantID <= 0 {
+		c.Error(apperrors.NewValidationError("無效的參與者 ID"))
 		return
 	}
 
 	// 檢查參與者是否屬於此配對局
-	var participant MatchParticipant
+	var participant models.MatchParticipant
 	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			SendError(c, http.StatusBadRequest, "指定的參與者不存在或不屬於此配對局")
+			c.Error(apperrors.NewValidationError("指定的參與者不存在或不屬於此配對局"))
 			return
 		}
-		SendError(c, http.StatusInternalServerError, "無法驗證參與者")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 更新參與者狀態為 rejected
 	if err := organizerDB.Model(&participant).Update("status", "rejected").Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法審核拒絕參與者")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 

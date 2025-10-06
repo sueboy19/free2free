@@ -6,33 +6,14 @@ import (
 	"strconv"
 	"time"
 
+	apperrors "free2free/errors"
+
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
+
+	"free2free/models"
 )
-
-// Match 代表配對局
-// @Description 配對局資訊
-type Match struct {
-	ID          int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	ActivityID  int64     `json:"activity_id"`
-	OrganizerID int64     `json:"organizer_id"`
-	MatchTime   time.Time `json:"match_time"`
-	Status      string    `json:"status"` // open, closed, completed
-	Activity    Activity  `gorm:"foreignKey:ActivityID" json:"activity"`
-	Organizer   User      `gorm:"foreignKey:OrganizerID" json:"organizer"`
-}
-
-// MatchParticipant 代表配對參與者
-// @Description 配對參與者資訊
-type MatchParticipant struct {
-	ID       int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	MatchID  int64     `json:"match_id"`
-	UserID   int64     `json:"user_id"`
-	Status   string    `json:"status"` // pending, approved, rejected
-	JoinedAt time.Time `json:"joined_at"`
-	Match    Match     `gorm:"foreignKey:MatchID" json:"match"`
-	User     User      `gorm:"foreignKey:UserID" json:"user"`
-}
 
 // UserAuthMiddleware 使用者認證中介層
 func UserAuthMiddleware() gin.HandlerFunc {
@@ -41,7 +22,7 @@ func UserAuthMiddleware() gin.HandlerFunc {
 		// 例如檢查 session 或 JWT token 中的使用者身份
 		// 為了簡化，這裡假設有一個 isAuthenticatedUser 函數
 		if !isAuthenticatedUser(c) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "需要使用者權限"})
+			c.Error(apperrors.NewUnauthorizedError("需要使用者權限"))
 			c.Abort()
 			return
 		}
@@ -91,10 +72,10 @@ func SetupUserRoutes(r *gin.Engine) {
 // @Router /user/matches [get]
 // @Security ApiKeyAuth
 func listMatches(c *gin.Context) {
-	var matches []Match
+	var matches []models.Match
 	// 只顯示狀態為 open 且時間未到的配對
 	if err := userDB.Preload("Activity").Preload("Organizer").Where("status = ? AND match_time > ?", "open", time.Now()).Order("match_time ASC").Find(&matches).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法取得配對列表")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -114,33 +95,34 @@ func listMatches(c *gin.Context) {
 // @Router /user/matches [post]
 // @Security ApiKeyAuth
 func createMatch(c *gin.Context) {
-	var match Match
+	var match models.Match
 	if err := c.ShouldBindJSON(&match); err != nil {
-		SendError(c, http.StatusBadRequest, "無效的請求資料")
+		c.Error(apperrors.NewValidationError("無效的請求資料"))
 		return
 	}
 
-	// 驗證必要欄位
-	if match.ActivityID <= 0 || match.MatchTime.IsZero() {
-		SendError(c, http.StatusBadRequest, "活動 ID 和配對時間為必填欄位")
+	// Validate struct
+	v := validator.New()
+	if err := v.Struct(&match); err != nil {
+		c.Error(apperrors.NewValidationError(err.Error()))
 		return
 	}
 
 	// 檢查活動是否存在
-	var activity Activity
+	var activity models.Activity
 	if err := userDB.First(&activity, match.ActivityID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			SendError(c, http.StatusBadRequest, "指定的活動不存在")
+			c.Error(apperrors.NewValidationError("指定的活動不存在"))
 			return
 		}
-		SendError(c, http.StatusInternalServerError, "無法驗證活動")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 從認證資訊取得使用者 ID
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		SendError(c, http.StatusUnauthorized, "未登入")
+		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
 	}
 
@@ -149,7 +131,7 @@ func createMatch(c *gin.Context) {
 	match.Status = "open"
 
 	if err := userDB.Create(&match).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法建立配對局")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -171,48 +153,49 @@ func createMatch(c *gin.Context) {
 // @Router /user/matches/{id}/join [post]
 // @Security ApiKeyAuth
 func joinMatch(c *gin.Context) {
-	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的配對局 ID")
+	idStr := c.Param("id")
+	matchID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || matchID <= 0 {
+		c.Error(apperrors.NewValidationError("無效的配對局 ID"))
 		return
 	}
 
 	// 檢查配對局是否存在且可參與
-	var match Match
+	var match models.Match
 	if err := userDB.Where("id = ? AND status = ? AND match_time > ?", matchID, "open", time.Now()).First(&match).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			SendError(c, http.StatusBadRequest, "指定的配對局不存在或已關閉")
+			c.Error(apperrors.NewValidationError("指定的配對局不存在或已關閉"))
 			return
 		}
-		SendError(c, http.StatusInternalServerError, "無法驗證配對局")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 從認證資訊取得使用者 ID
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		SendError(c, http.StatusUnauthorized, "未登入")
+		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
 	}
 
 	userID := user.ID
 
 	// 檢查使用者是否已經參與此配對局
-	var existingParticipant MatchParticipant
+	var existingParticipant models.MatchParticipant
 	err = userDB.Where("match_id = ? AND user_id = ?", matchID, userID).First(&existingParticipant).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		SendError(c, http.StatusInternalServerError, "無法檢查參與狀態")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 如果已經參與，返回錯誤
 	if err == nil {
-		SendError(c, http.StatusBadRequest, "您已經參與此配對局")
+		c.Error(apperrors.NewValidationError("您已經參與此配對局"))
 		return
 	}
 
 	// 建立新的參與記錄
-	participant := MatchParticipant{
+	participant := models.MatchParticipant{
 		MatchID:  matchID,
 		UserID:   userID,
 		Status:   "pending",
@@ -220,7 +203,7 @@ func joinMatch(c *gin.Context) {
 	}
 
 	if err := userDB.Create(&participant).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法參與配對局")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -243,13 +226,13 @@ func listPastMatches(c *gin.Context) {
 	// 從認證資訊取得使用者 ID
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		SendError(c, http.StatusUnauthorized, "未登入")
+		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
 	}
 
 	userID := user.ID
 
-	var matches []Match
+	var matches []models.Match
 	// 取得該使用者參與過的已完成的配對局
 	if err := userDB.Joins("JOIN match_participants mp ON matches.id = mp.match_id").
 		Where("mp.user_id = ? AND matches.status = ?", userID, "completed").
@@ -257,7 +240,7 @@ func listPastMatches(c *gin.Context) {
 		Preload("Activity").
 		Preload("Organizer").
 		Find(&matches).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法取得過去參與的配對列表")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 

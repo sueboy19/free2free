@@ -6,24 +6,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-)
+	apperrors "free2free/errors"
 
-// Review 代表評分與留言
-// @Description 評分與留言資訊
-type Review struct {
-	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	MatchID    int64     `json:"match_id"`
-	ReviewerID int64     `json:"reviewer_id"`
-	RevieweeID int64     `json:"reviewee_id"`
-	Score      int       `json:"score"` // 3-5分
-	Comment    string    `json:"comment"`
-	CreatedAt  time.Time `json:"created_at"`
-	Match      Match     `gorm:"foreignKey:MatchID" json:"match"`
-	Reviewer   User      `gorm:"foreignKey:ReviewerID" json:"reviewer"`
-	Reviewee   User      `gorm:"foreignKey:RevieweeID" json:"reviewee"`
-}
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"gorm.io/gorm"
+
+	"free2free/models"
+)
 
 // ReviewAuthMiddleware 評分認證中介層
 func ReviewAuthMiddleware() gin.HandlerFunc {
@@ -34,13 +24,13 @@ func ReviewAuthMiddleware() gin.HandlerFunc {
 		// 為了簡化，這裡假設有一個 canReviewMatch 函數
 		matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(400, gin.H{"error": "無效的配對局 ID"})
+			c.Error(apperrors.NewValidationError("無效的配對局 ID"))
 			c.Abort()
 			return
 		}
 
 		if !canReviewMatch(c, matchID) {
-			c.JSON(401, gin.H{"error": "無評分權限"})
+			c.Error(apperrors.NewForbiddenError("無評分權限"))
 			c.Abort()
 			return
 		}
@@ -59,7 +49,7 @@ func canReviewMatch(c *gin.Context, matchID int64) bool {
 	}
 
 	// 檢查使用者是否參與了指定的配對局
-	var participant MatchParticipant
+	var participant models.MatchParticipant
 	err = reviewDB.Where("match_id = ? AND user_id = ? AND status = ?", matchID, user.ID, "approved").First(&participant).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false
@@ -69,7 +59,7 @@ func canReviewMatch(c *gin.Context, matchID int64) bool {
 	}
 
 	// 檢查配對局是否已完成
-	var match Match
+	var match models.Match
 	err = reviewDB.Where("id = ? AND status = ?", matchID, "completed").First(&match).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false
@@ -112,28 +102,30 @@ func SetupReviewRoutes(r *gin.Engine) {
 // @Router /review/matches/{id} [post]
 // @Security ApiKeyAuth
 func createReview(c *gin.Context) {
-	matchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的配對局 ID")
+	idStr := c.Param("id")
+	matchID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || matchID <= 0 {
+		c.Error(apperrors.NewValidationError("無效的配對局 ID"))
 		return
 	}
 
-	var review Review
+	var review models.Review
 	if err := c.ShouldBindJSON(&review); err != nil {
-		SendError(c, http.StatusBadRequest, "無效的請求資料")
+		c.Error(apperrors.NewValidationError("無效的請求資料"))
 		return
 	}
 
-	// 驗證必要欄位
-	if review.RevieweeID <= 0 || review.Score < 3 || review.Score > 5 {
-		SendError(c, http.StatusBadRequest, "被評分者和評分為必填欄位，評分範圍為3-5分")
+	// Validate struct
+	v := validator.New()
+	if err := v.Struct(&review); err != nil {
+		c.Error(apperrors.NewValidationError(err.Error()))
 		return
 	}
 
 	// 從認證資訊取得評分者 ID
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		SendError(c, http.StatusUnauthorized, "未登入")
+		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
 	}
 
@@ -142,23 +134,23 @@ func createReview(c *gin.Context) {
 	review.CreatedAt = time.Now()
 
 	// 檢查是否已經對此人在此配對局評分過
-	var existingReview Review
+	var existingReview models.Review
 	err = reviewDB.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?",
 		review.ReviewerID, review.RevieweeID, review.MatchID).First(&existingReview).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		SendError(c, http.StatusInternalServerError, "無法檢查評分記錄")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 如果已經評分過，返回錯誤
 	if err == nil {
-		SendError(c, http.StatusBadRequest, "您已經對此人評分過")
+		c.Error(apperrors.NewValidationError("您已經對此人評分過"))
 		return
 	}
 
 	// 建立新的評分記錄
 	if err := reviewDB.Create(&review).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法建立評分記錄")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 

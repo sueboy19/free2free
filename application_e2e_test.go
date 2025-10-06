@@ -12,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"free2free/models"
 )
 
 // TestFullApplicationFlow 測試完整的應用程式流程
@@ -62,19 +64,19 @@ func TestFullApplicationFlow(t *testing.T) {
 
 		// 測試認證端點
 		testAuthEndpoints(t, baseURL)
-		
+
 		// 測試管理員端點（未授權）
 		testAdminEndpointsUnauthorized(t, baseURL)
-		
+
 		// 測試使用者端點（未授權）
 		testUserEndpointsUnauthorized(t, baseURL)
-		
+
 		// 測試開局者端點（未授權）
 		testOrganizerEndpointsUnauthorized(t, baseURL)
-		
+
 		// 測試評分端點（未授權）
 		testReviewEndpointsUnauthorized(t, baseURL)
-		
+
 		// 測試評論點讚/倒讚端點（未授權）
 		testReviewLikeEndpointsUnauthorized(t, baseURL)
 
@@ -136,7 +138,7 @@ func createTestServer(router *gin.Engine) (*http.Server, string) {
 
 	// 創建服務器
 	server := &http.Server{Addr: listener.Addr().String(), Handler: router}
-	
+
 	// 在goroutine中啟動服務器
 	go func() {
 		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
@@ -249,7 +251,7 @@ func testOrganizerEndpointsUnauthorized(t *testing.T, baseURL string) {
 // testReviewEndpointsUnauthorized 測試評分端點（未授權）
 func testReviewEndpointsUnauthorized(t *testing.T, baseURL string) {
 	// 測試創建評分
-	review := Review{
+	review := models.Review{
 		RevieweeID: 2,
 		Score:      5,
 		Comment:    "測試評分",

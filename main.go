@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"crypto/rand"
+	"encoding/base64"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -22,8 +25,15 @@ import (
 	"github.com/markbates/goth/providers/instagram"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	apperrors "free2free/errors"
+	middlewarepkg "free2free/middleware"
+	"free2free/models"
+
+	"github.com/go-playground/validator/v10"
 
 	_ "free2free/docs" // 这里需要导入你项目的文档包
 )
@@ -42,30 +52,6 @@ var (
 	reviewLikeDB DB
 )
 
-// User 代表使用者資料結構
-type User struct {
-	ID             int64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	SocialID       string `gorm:"uniqueIndex:social_provider" json:"social_id"`
-	SocialProvider string `gorm:"uniqueIndex:social_provider" json:"social_provider"`
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	AvatarURL      string `json:"avatar_url"`
-	IsAdmin        bool   `json:"is_admin"` // 添加管理員標記
-	CreatedAt      int64  `gorm:"type:bigint;autoCreateTime:milli" json:"created_at"`
-	UpdatedAt      int64  `gorm:"type:bigint;autoCreateTime:milli" json:"updated_at"`
-}
-
-type ErrorResponse struct {
-	Error string `json:"error"`
-	Code  int    `json:"code"`
-}
-
-func SendError(c *gin.Context, code int, message string) {
-	c.JSON(code, ErrorResponse{
-		Error: message,
-		Code:  code,
-	})
-}
 func init() {
 	// 載入 .env 檔案
 	if err := godotenv.Load(); err != nil {
@@ -104,14 +90,15 @@ func init() {
 
 		// 自動遷移所有資料表
 		if err := db.WithContext(ctx).AutoMigrate(
-			&User{},
-			&Admin{},
-			&Location{},
-			&Activity{},
-			&Match{},
-			&MatchParticipant{},
-			&Review{},
-			&ReviewLike{},
+			&models.User{},
+			&models.Admin{},
+			&models.Location{},
+			&models.Activity{},
+			&models.Match{},
+			&models.MatchParticipant{},
+			&models.Review{},
+			&models.ReviewLike{},
+			&models.RefreshToken{},
 		); err != nil {
 			log.Fatal("資料表遷移失敗:", err)
 		}
@@ -174,7 +161,8 @@ func sessionsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session, err := store.Get(c.Request, "free2free-session")
 		if err != nil {
-			SendError(c, http.StatusInternalServerError, "无法获取 session")
+			c.Error(apperrors.NewAppError(http.StatusInternalServerError, "无法获取 session"))
+			c.Abort()
 			return
 		}
 		c.Set("session", session)
@@ -224,19 +212,9 @@ func main() {
 	// 設定 session middleware
 	r.Use(sessionsMiddleware())
 
-	// 全域錯誤中間件
-	r.Use(func(c *gin.Context) {
-		c.Next()
-
-		if len(c.Errors) > 0 {
-			err := c.Errors.Last()
-			if httpErr, ok := err.Err.(interface{ Status() int }); ok {
-				SendError(c, httpErr.Status(), err.Error())
-			} else {
-				SendError(c, http.StatusInternalServerError, "內部伺服器錯誤")
-			}
-		}
-	})
+	// 統一錯誤處理中間件
+	r.Use(middlewarepkg.CustomRecovery())
+	r.Use(middlewarepkg.ErrorHandler())
 
 	// OAuth 認證路由
 	r.GET("/auth/:provider", oauthBegin)
@@ -247,6 +225,9 @@ func main() {
 
 	// JWT token 交換路由
 	r.GET("/auth/token", exchangeToken)
+
+	// Refresh token 路由
+	r.POST("/auth/refresh", refreshTokenHandler)
 
 	// 受保護的路由範例
 	r.GET("/profile", profile)
@@ -300,16 +281,19 @@ func oauthCallback(c *gin.Context) {
 	// 使用 gothic 取得使用者資訊
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		SendError(c, http.StatusInternalServerError, err.Error())
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, err.Error()))
 		return
 	}
 
 	// 儲存或更新使用者資訊到資料庫
 	dbUser, err := saveOrUpdateUser(user)
 	if err != nil {
-		SendError(c, http.StatusInternalServerError, "儲存使用者資訊失敗")
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "儲存使用者資訊失敗"))
 		return
 	}
+
+	// Delete existing refresh tokens for this user (revoke old ones)
+	db.Where("user_id = ?", dbUser.ID).Delete(&models.RefreshToken{})
 
 	// 將使用者資訊存入 session
 	session := c.MustGet("session").(*sessions.Session)
@@ -317,17 +301,31 @@ func oauthCallback(c *gin.Context) {
 	session.Values["user_name"] = dbUser.Name
 	session.Save(c.Request, c.Writer)
 
-	// 生成 JWT token
-	tokenString, err := generateJWTToken(dbUser)
+	// 生成 JWT tokens
+	accessToken, refreshToken, hashedRefresh, err := generateTokens(dbUser)
 	if err != nil {
-		SendError(c, http.StatusInternalServerError, "生成 token 失敗")
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "生成 token 失敗"))
 		return
 	}
 
-	// 返回使用者資訊和 token
+	// 創建 RefreshToken 記錄
+	refreshRecord := &models.RefreshToken{
+		UserID:    uint(dbUser.ID),
+		Token:     string(hashedRefresh),
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+	if err := db.Create(refreshRecord).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
+		return
+	}
+
+	// 返回使用者資訊和 tokens
 	c.JSON(http.StatusOK, gin.H{
-		"user":  dbUser,
-		"token": tokenString,
+		"user":          dbUser,
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"expires_in":    15 * 60, // 15 minutes in seconds
 	})
 }
 
@@ -342,7 +340,16 @@ func oauthCallback(c *gin.Context) {
 // @Router /logout [get]
 func logout(c *gin.Context) {
 	session := c.MustGet("session").(*sessions.Session)
-	// session.Options.MaxAge = -1 // 刪除 session
+	userID, ok := session.Values["user_id"].(int64)
+	if ok {
+		// Delete refresh tokens for this user
+		if err := db.Where("user_id = ?", userID).Delete(&models.RefreshToken{}).Error; err != nil {
+			c.Error(apperrors.MapGORMError(err))
+			// Don't abort, just log
+		}
+	}
+
+	// Clear session
 	session.Options.MaxAge = 0
 	session.Options.Path = "/"
 	session.Save(c.Request, c.Writer)
@@ -362,19 +369,38 @@ func exchangeToken(c *gin.Context) {
 	// 取得已認證的使用者
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		SendError(c, http.StatusUnauthorized, "未登入")
+		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
 	}
 
-	// 生成 JWT token
-	tokenString, err := generateJWTToken(user)
+	// 生成 JWT tokens
+	accessToken, refreshToken, hashedRefresh, err := generateTokens(user)
 	if err != nil {
-		SendError(c, http.StatusInternalServerError, "生成 token 失敗")
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "生成 token 失敗"))
 		return
 	}
 
-	// 返回 token
-	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+	// 創建或更新 RefreshToken 記錄 (for exchange, assume create new)
+	// First, delete existing for this user to rotate
+	db.Where("user_id = ?", user.ID).Delete(&models.RefreshToken{})
+
+	refreshRecord := &models.RefreshToken{
+		UserID:    uint(user.ID),
+		Token:     string(hashedRefresh),
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+	if err := db.Create(refreshRecord).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
+		return
+	}
+
+	// 返回 tokens
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+		"expires_in":    15 * 60,
+	})
 }
 
 // profile 受保護的路由範例
@@ -392,7 +418,7 @@ func profile(c *gin.Context) {
 	// 取得已認證的使用者
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		SendError(c, http.StatusUnauthorized, "未登入")
+		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
 	}
 
@@ -400,20 +426,22 @@ func profile(c *gin.Context) {
 }
 
 // saveOrUpdateUser 儲存或更新使用者資訊
-func saveOrUpdateUser(gothUser goth.User) (*User, error) {
-	var user User
+func saveOrUpdateUser(gothUser goth.User) (*models.User, error) {
+	var user models.User
 
 	// 檢查使用者是否已存在
 	err := db.Where("social_id = ? AND social_provider = ?", gothUser.UserID, gothUser.Provider).First(&user).Error
 
 	if err != nil && err != gorm.ErrRecordNotFound {
 		// 查詢出錯
-		return nil, fmt.Errorf("database query error: %w", err)
+		return nil, apperrors.MapGORMError(err)
 	}
+
+	v := validator.New()
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// 使用者不存在，建立新使用者
-		user = User{
+		user = models.User{
 			SocialID:       gothUser.UserID,
 			SocialProvider: gothUser.Provider,
 			Name:           gothUser.Name,
@@ -421,21 +449,41 @@ func saveOrUpdateUser(gothUser goth.User) (*User, error) {
 			AvatarURL:      gothUser.AvatarURL,
 		}
 
+		// Validate new user
+		if err := v.Struct(&user); err != nil {
+			return nil, apperrors.NewValidationError("Invalid user data from OAuth: " + err.Error())
+		}
+
 		// 儲存新使用者
 		if err := db.Create(&user).Error; err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return nil, fmt.Errorf("user already exists: %w", err)
+				return nil, apperrors.MapGORMError(err)
 			}
-			return nil, fmt.Errorf("create user failed: %w", err)
+			return nil, apperrors.MapGORMError(err)
 		}
 	} else {
 		// 使用者已存在，更新資訊
+		updatedUser := models.User{
+			ID:             user.ID,
+			SocialID:       user.SocialID,
+			SocialProvider: user.SocialProvider,
+			Name:           gothUser.Name,
+			Email:          gothUser.Email,
+			AvatarURL:      gothUser.AvatarURL,
+			IsAdmin:        user.IsAdmin,
+		}
+
+		// Validate updated user
+		if err := v.Struct(&updatedUser); err != nil {
+			return nil, apperrors.NewValidationError("Invalid update data from OAuth: " + err.Error())
+		}
+
 		user.Name = gothUser.Name
 		user.Email = gothUser.Email
 		user.AvatarURL = gothUser.AvatarURL
 
 		if err := db.Save(&user).Error; err != nil {
-			return nil, fmt.Errorf("update user failed: %w", err)
+			return nil, apperrors.MapGORMError(err)
 		}
 	}
 
@@ -450,33 +498,138 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// generateJWTToken 生成 JWT token
-func generateJWTToken(user *User) (string, error) {
+type TokenResponse struct {
+	AccessToken   string `json:"access_token"`
+	RefreshToken  string `json:"refresh_token"`
+	HashedRefresh string // internal
+}
+
+// generateTokens 生成 access 和 refresh tokens
+func generateTokens(user *models.User) (string, string, string, error) {
 	// 获取JWT密钥
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		return "", fmt.Errorf("JWT_SECRET 环境变量未设置")
+		return "", "", "", fmt.Errorf("JWT_SECRET 环境变量未设置")
 	}
 	if len(jwtSecret) < 32 {
-		return "", fmt.Errorf("JWT_SECRET 長度不足 32 byte")
+		return "", "", "", fmt.Errorf("JWT_SECRET 長度不足 32 byte")
 	}
 
-	// 建立 claims
-	claims := &Claims{
+	// Access token claims - 15 min expiry
+	accessClaims := &Claims{
 		UserID:   user.ID,
 		UserName: user.Name,
-		IsAdmin:  user.IsAdmin, // 包含管理員標記
+		IsAdmin:  user.IsAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 24小时过期
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
-	// 建立 token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessString, err := accessToken.SignedString([]byte(jwtSecret))
+	if err != nil {
+		return "", "", "", err
+	}
 
-	// 簽署 token
-	return token.SignedString([]byte(jwtSecret))
+	// Generate random refresh token
+	refreshBytes := make([]byte, 32)
+	if _, err := rand.Read(refreshBytes); err != nil {
+		return "", "", "", err
+	}
+	refreshToken := base64.StdEncoding.EncodeToString(refreshBytes)
+
+	// Hash the refresh token
+	hashedRefresh, err := bcrypt.GenerateFromPassword([]byte(refreshToken), bcrypt.DefaultCost)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return accessString, refreshToken, string(hashedRefresh), nil
+}
+
+// refreshTokenHandler 處理 refresh token
+// @Summary Refresh access token
+// @Description 使用 refresh token 獲取新的 access token 和 refresh token
+// @Tags 認證
+// @Accept json
+// @Produce json
+// @Param request body RefreshRequest true "Refresh token request"
+// @Success 200 {object} map[string]interface{} "新 tokens"
+// @Failure 400 {object} ErrorResponse "無效的請求"
+// @Failure 401 {object} ErrorResponse "無效的 refresh token"
+// @Router /auth/refresh [post]
+func refreshTokenHandler(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(apperrors.NewValidationError("無效的請求資料"))
+		return
+	}
+
+	if req.RefreshToken == "" {
+		c.Error(apperrors.NewUnauthorizedError("缺少 refresh token"))
+		return
+	}
+
+	// Load all active refresh tokens
+	var records []models.RefreshToken
+	if err := db.Where("expires_at > ?", time.Now()).Find(&records).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
+		return
+	}
+
+	var validRecord *models.RefreshToken
+	for i := range records {
+		if err := bcrypt.CompareHashAndPassword([]byte(records[i].Token), []byte(req.RefreshToken)); err == nil {
+			validRecord = &records[i]
+			break
+		}
+	}
+
+	if validRecord == nil {
+		c.Error(apperrors.NewUnauthorizedError("無效的 refresh token"))
+		return
+	}
+
+	// Get user
+	var user models.User
+	if err := db.First(&user, validRecord.UserID).Error; err != nil {
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "無法取得使用者"))
+		return
+	}
+
+	// Generate new tokens
+	newAccessToken, newRefreshToken, newHashedRefresh, err := generateTokens(&user)
+	if err != nil {
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "生成新 token 失敗"))
+		return
+	}
+
+	// Rotate: delete old
+	if err := db.Delete(validRecord).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
+		return
+	}
+
+	// Create new
+	newRecord := &models.RefreshToken{
+		UserID:    validRecord.UserID,
+		Token:     newHashedRefresh,
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+	if err := db.Create(newRecord).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  newAccessToken,
+		"refresh_token": newRefreshToken,
+		"expires_in":    15 * 60,
+	})
 }
 
 // validateJWTToken 驗證 JWT token
@@ -493,7 +646,7 @@ func validateJWTToken(tokenString string) (*Claims, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, apperrors.NewUnauthorizedError(err.Error())
 	}
 
 	// 验证token
@@ -501,22 +654,22 @@ func validateJWTToken(tokenString string) (*Claims, error) {
 		return claims, nil
 	}
 
-	return nil, fmt.Errorf("无效的token")
+	return nil, apperrors.NewUnauthorizedError("無效的 token")
 }
 
 // getAuthenticatedUser 從 context 中取得已認證的使用者
-var getAuthenticatedUser func(*gin.Context) (*User, error) = func(c *gin.Context) (*User, error) {
+var getAuthenticatedUser func(*gin.Context) (*models.User, error) = func(c *gin.Context) (*models.User, error) {
 	// 首先嘗試從 session 取得使用者
 	session := c.MustGet("session").(*sessions.Session)
 	if userID, ok := session.Values["user_id"]; ok {
 		// 從資料庫取得使用者資訊
-		var user User
+		var user models.User
 		err := db.First(&user, userID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user not found")
+			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 		}
 		if err != nil {
-			return nil, fmt.Errorf("database error: %w", err)
+			return nil, apperrors.MapGORMError(err)
 		}
 		return &user, nil
 	}
@@ -542,13 +695,13 @@ var getAuthenticatedUser func(*gin.Context) (*User, error) = func(c *gin.Context
 	}
 
 	// 從資料庫取得使用者資訊
-	var user User
+	var user models.User
 	err = db.First(&user, claims.UserID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("user not found")
+		return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 	}
 	if err != nil {
-		return nil, fmt.Errorf("database error: %w", err)
+		return nil, apperrors.MapGORMError(err)
 	}
 
 	return &user, nil

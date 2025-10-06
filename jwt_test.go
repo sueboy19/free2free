@@ -7,20 +7,22 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+
+	"free2free/models"
 )
 
 func TestGenerateJWTToken(t *testing.T) {
 	// 設定測試用的 JWT_SECRET
-	os.Setenv("JWT_SECRET", "test-secret-key-32-chars-long!!")
+	os.Setenv("JWT_SECRET", "test-secret-key-32-chars-long-enough!!")
 
 	tests := []struct {
 		name    string
-		user    *User
+		user    *models.User
 		wantErr bool
 	}{
 		{
 			name: "有效使用者生成 token",
-			user: &User{
+			user: &models.User{
 				ID:      1,
 				Name:    "Test User",
 				IsAdmin: false,
@@ -29,7 +31,7 @@ func TestGenerateJWTToken(t *testing.T) {
 		},
 		{
 			name: "無效 secret 長度",
-			user: &User{
+			user: &models.User{
 				ID:   1,
 				Name: "Test User",
 			},
@@ -41,22 +43,26 @@ func TestGenerateJWTToken(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.name == "無效 secret 長度" {
 				os.Setenv("JWT_SECRET", "short")
-				defer os.Unsetenv("JWT_SECRET")
+				defer func() {
+					os.Setenv("JWT_SECRET", "test-secret-key-32-chars-long-enough!!")
+				}()
 			}
 
-			tokenString, err := generateJWTToken(tt.user)
+			accessToken, refreshToken, _, err := generateTokens(tt.user)
 
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Empty(t, tokenString)
+				assert.Empty(t, accessToken)
+				assert.Empty(t, refreshToken)
 			} else {
 				assert.NoError(t, err)
-				assert.NotEmpty(t, tokenString)
+				assert.NotEmpty(t, accessToken)
+				assert.NotEmpty(t, refreshToken)
 
 				// 驗證 token
 				claims := &Claims{}
-				token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-					return []byte("test-secret-key-32-chars-long!!"), nil
+				token, err := jwt.ParseWithClaims(accessToken, claims, func(token *jwt.Token) (interface{}, error) {
+					return []byte("test-secret-key-32-chars-long-enough!!"), nil
 				})
 				assert.NoError(t, err)
 				assert.True(t, token.Valid)
@@ -69,15 +75,17 @@ func TestGenerateJWTToken(t *testing.T) {
 }
 
 func TestValidateJWTToken(t *testing.T) {
-	os.Setenv("JWT_SECRET", "test-secret-key-32-chars-long!!")
-	defer os.Unsetenv("JWT_SECRET")
+	os.Setenv("JWT_SECRET", "test-secret-key-32-chars-long-enough!!")
+	defer func() {
+		os.Setenv("JWT_SECRET", "")
+	}()
 
-	user := &User{
+	user := &models.User{
 		ID:      1,
 		Name:    "Test User",
 		IsAdmin: false,
 	}
-	tokenString, err := generateJWTToken(user)
+	accessToken, _, _, err := generateTokens(user)
 	assert.NoError(t, err)
 
 	// 生成過期 token
@@ -91,7 +99,7 @@ func TestValidateJWTToken(t *testing.T) {
 		},
 	}
 	expiredToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	expiredTokenString, err := expiredToken.SignedString([]byte("test-secret-key-32-chars-long!!"))
+	expiredTokenString, err := expiredToken.SignedString([]byte("test-secret-key-32-chars-long-enough!!"))
 	assert.NoError(t, err)
 
 	invalidToken := "invalid.token.string"
@@ -103,7 +111,7 @@ func TestValidateJWTToken(t *testing.T) {
 	}{
 		{
 			name:    "有效 token",
-			token:   tokenString,
+			token:   accessToken,
 			wantErr: false,
 		},
 		{

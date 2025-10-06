@@ -2,41 +2,16 @@ package main
 
 import (
 	"errors"
+	"free2free/models"
 	"net/http"
 	"strconv"
 
+	apperrors "free2free/errors"
+
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
-
-// Activity 代表配對活動
-// @Description 配對活動資訊
-type Activity struct {
-	ID          int64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title       string   `json:"title"`
-	TargetCount int      `json:"target_count"`
-	LocationID  int64    `json:"location_id"`
-	Description string   `json:"description"`
-	CreatedBy   int64    `json:"created_by"`
-	Location    Location `gorm:"foreignKey:LocationID" json:"location"`
-}
-
-// Location 代表地點
-// @Description 地點資訊
-type Location struct {
-	ID        int64   `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name      string  `json:"name"`
-	Address   string  `json:"address"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-}
-
-// Admin 代表管理員
-type Admin struct {
-	ID       int64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	Username string `gorm:"unique" json:"username"`
-	Email    string `gorm:"unique" json:"email"`
-}
 
 // AdminAuthMiddleware 管理員認證中介層
 func AdminAuthMiddleware() gin.HandlerFunc {
@@ -45,7 +20,7 @@ func AdminAuthMiddleware() gin.HandlerFunc {
 		// 例如檢查 session 或 JWT token 中的管理員身份
 		// 為了簡化，這裡假設有一個 isAuthenticatedAdmin 函數
 		if !isAuthenticatedAdmin(c) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "需要管理員權限"})
+			c.Error(apperrors.NewForbiddenError("需要管理員權限"))
 			c.Abort()
 			return
 		}
@@ -99,9 +74,9 @@ func SetupAdminRoutes(r *gin.Engine) {
 // @Router /admin/activities [get]
 // @Security ApiKeyAuth
 func listActivities(c *gin.Context) {
-	var activities []Activity
+	var activities []models.Activity
 	if err := adminDB.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法取得活動列表")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -121,33 +96,34 @@ func listActivities(c *gin.Context) {
 // @Router /admin/activities [post]
 // @Security ApiKeyAuth
 func createActivity(c *gin.Context) {
-	var activity Activity
+	var activity models.Activity
 	if err := c.ShouldBindJSON(&activity); err != nil {
-		SendError(c, http.StatusBadRequest, "無效的請求資料")
+		c.Error(apperrors.NewValidationError("無效的請求資料"))
 		return
 	}
 
-	// 驗證必要欄位
-	if activity.Title == "" || activity.TargetCount <= 0 || activity.LocationID <= 0 {
-		SendError(c, http.StatusBadRequest, "標題、目標人數和地點為必填欄位")
+	// Validate struct
+	v := validator.New()
+	if err := v.Struct(&activity); err != nil {
+		c.Error(apperrors.NewValidationError(err.Error()))
 		return
 	}
 
 	// 檢查地點是否存在
-	var location Location
+	var location models.Location
 	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			SendError(c, http.StatusBadRequest, "指定的地點不存在")
+			c.Error(apperrors.NewValidationError("指定的地點不存在"))
 			return
 		}
-		SendError(c, http.StatusInternalServerError, "無法驗證地點")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 從認證資訊取得使用者 ID
 	user, err := getAuthenticatedUser(c)
 	if err != nil {
-		SendError(c, http.StatusUnauthorized, "未登入")
+		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
 	}
 
@@ -155,7 +131,7 @@ func createActivity(c *gin.Context) {
 	activity.CreatedBy = user.ID
 
 	if err := adminDB.Create(&activity).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法建立活動")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -176,38 +152,40 @@ func createActivity(c *gin.Context) {
 // @Router /admin/activities/{id} [put]
 // @Security ApiKeyAuth
 func updateActivity(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的活動 ID")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.Error(apperrors.NewValidationError("無效的活動 ID"))
 		return
 	}
 
-	var activity Activity
+	var activity models.Activity
 	if err := c.ShouldBindJSON(&activity); err != nil {
-		SendError(c, http.StatusBadRequest, "無效的請求資料")
+		c.Error(apperrors.NewValidationError("無效的請求資料"))
 		return
 	}
 
-	// 驗證必要欄位
-	if activity.Title == "" || activity.TargetCount <= 0 || activity.LocationID <= 0 {
-		SendError(c, http.StatusBadRequest, "標題、目標人數和地點為必填欄位")
+	// Validate struct
+	v := validator.New()
+	if err := v.Struct(&activity); err != nil {
+		c.Error(apperrors.NewValidationError(err.Error()))
 		return
 	}
 
 	// 檢查地點是否存在
-	var location Location
+	var location models.Location
 	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			SendError(c, http.StatusBadRequest, "指定的地點不存在")
+			c.Error(apperrors.NewValidationError("指定的地點不存在"))
 			return
 		}
-		SendError(c, http.StatusInternalServerError, "無法驗證地點")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 更新活動
-	if err := adminDB.Model(&Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法更新活動")
+	if err := adminDB.Model(&models.Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -228,14 +206,15 @@ func updateActivity(c *gin.Context) {
 // @Router /admin/activities/{id} [delete]
 // @Security ApiKeyAuth
 func deleteActivity(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的活動 ID")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.Error(apperrors.NewValidationError("無效的活動 ID"))
 		return
 	}
 
-	if err := adminDB.Delete(&Activity{}, id).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法刪除活動")
+	if err := adminDB.Delete(&models.Activity{}, id).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -253,9 +232,9 @@ func deleteActivity(c *gin.Context) {
 // @Router /admin/locations [get]
 // @Security ApiKeyAuth
 func listLocations(c *gin.Context) {
-	var locations []Location
+	var locations []models.Location
 	if err := adminDB.Order("id DESC").Find(&locations).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法取得地點列表")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -275,20 +254,21 @@ func listLocations(c *gin.Context) {
 // @Router /admin/locations [post]
 // @Security ApiKeyAuth
 func createLocation(c *gin.Context) {
-	var location Location
+	var location models.Location
 	if err := c.ShouldBindJSON(&location); err != nil {
-		SendError(c, http.StatusBadRequest, "無效的請求資料")
+		c.Error(apperrors.NewValidationError("無效的請求資料"))
 		return
 	}
 
-	// 驗證必要欄位
-	if location.Name == "" || location.Address == "" || location.Latitude == 0 || location.Longitude == 0 {
-		SendError(c, http.StatusBadRequest, "名稱、地址和座標為必填欄位")
+	// Validate struct
+	v := validator.New()
+	if err := v.Struct(&location); err != nil {
+		c.Error(apperrors.NewValidationError(err.Error()))
 		return
 	}
 
 	if err := adminDB.Create(&location).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法建立地點")
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -309,27 +289,29 @@ func createLocation(c *gin.Context) {
 // @Router /admin/locations/{id} [put]
 // @Security ApiKeyAuth
 func updateLocation(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的地點 ID")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.Error(apperrors.NewValidationError("無效的地點 ID"))
 		return
 	}
 
-	var location Location
+	var location models.Location
 	if err := c.ShouldBindJSON(&location); err != nil {
-		SendError(c, http.StatusBadRequest, "無效的請求資料")
+		c.Error(apperrors.NewValidationError("無效的請求資料"))
 		return
 	}
 
-	// 驗證必要欄位
-	if location.Name == "" || location.Address == "" || location.Latitude == 0 || location.Longitude == 0 {
-		SendError(c, http.StatusBadRequest, "名稱、地址和座標為必填欄位")
+	// Validate struct
+	v := validator.New()
+	if err := v.Struct(&location); err != nil {
+		c.Error(apperrors.NewValidationError(err.Error()))
 		return
 	}
 
 	// 更新地點
-	if err := adminDB.Model(&Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法更新地點")
+	if err := adminDB.Model(&models.Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
@@ -350,14 +332,15 @@ func updateLocation(c *gin.Context) {
 // @Router /admin/locations/{id} [delete]
 // @Security ApiKeyAuth
 func deleteLocation(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		SendError(c, http.StatusBadRequest, "無效的地點 ID")
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		c.Error(apperrors.NewValidationError("無效的地點 ID"))
 		return
 	}
 
-	if err := adminDB.Delete(&Location{}, id).Error; err != nil {
-		SendError(c, http.StatusInternalServerError, "無法刪除地點")
+	if err := adminDB.Delete(&models.Location{}, id).Error; err != nil {
+		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 

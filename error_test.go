@@ -8,6 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"free2free/errors"
+	"free2free/middleware"
 )
 
 func TestSendError(t *testing.T) {
@@ -41,7 +44,8 @@ func TestSendError(t *testing.T) {
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 
-			SendError(c, tt.code, tt.message)
+			// 直接設置錯誤，讓 ErrorHandler 處理
+			c.Error(errors.NewAppError(tt.code, tt.message))
 
 			assert.Equal(t, tt.expectedCode, w.Code)
 			assert.Equal(t, tt.expectedBody, w.Body.String())
@@ -50,7 +54,7 @@ func TestSendError(t *testing.T) {
 }
 
 func TestErrorResponseStruct(t *testing.T) {
-	errResp := ErrorResponse{
+	errResp := middleware.ErrorResponse{
 		Error: "測試錯誤",
 		Code:  400,
 	}

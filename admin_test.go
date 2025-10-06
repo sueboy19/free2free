@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
+
+	"free2free/models"
 )
 
 type MockDB struct {
@@ -29,31 +31,31 @@ func (m *MockDB) Create(value interface{}) *gorm.DB {
 	if m.data == nil {
 		m.data = make(map[string]interface{})
 	}
-	if users, ok := value.(*[]User); ok {
+	if users, ok := value.(*[]models.User); ok {
 		for i, u := range *users {
 			newU := u
 			newU.ID = int64(i + 1)
-			if existing, ok := m.data["users"].([]User); ok {
+			if existing, ok := m.data["users"].([]models.User); ok {
 				m.data["users"] = append(existing, newU)
 			} else {
-				m.data["users"] = []User{newU}
+				m.data["users"] = []models.User{newU}
 			}
 		}
 	}
-	if activity, ok := value.(*Activity); ok {
+	if activity, ok := value.(*models.Activity); ok {
 		activity.ID = 1
-		if existing, ok := m.data["activities"].([]Activity); ok {
+		if existing, ok := m.data["activities"].([]models.Activity); ok {
 			m.data["activities"] = append(existing, *activity)
 		} else {
-			m.data["activities"] = []Activity{*activity}
+			m.data["activities"] = []models.Activity{*activity}
 		}
 	}
-	if location, ok := value.(*Location); ok {
+	if location, ok := value.(*models.Location); ok {
 		location.ID = 1
-		if existing, ok := m.data["locations"].([]Location); ok {
+		if existing, ok := m.data["locations"].([]models.Location); ok {
 			m.data["locations"] = append(existing, *location)
 		} else {
-			m.data["locations"] = []Location{*location}
+			m.data["locations"] = []models.Location{*location}
 		}
 	}
 	return &gorm.DB{Error: nil}
@@ -63,8 +65,8 @@ func (m *MockDB) First(dest interface{}, conds ...interface{}) *gorm.DB {
 	if m.data == nil {
 		m.data = make(map[string]interface{})
 	}
-	if user, ok := dest.(*User); ok {
-		if users, ok := m.data["users"].([]User); ok && len(users) > 0 {
+	if user, ok := dest.(*models.User); ok {
+		if users, ok := m.data["users"].([]models.User); ok && len(users) > 0 {
 			*user = users[0]
 			return &gorm.DB{Error: nil}
 		}
@@ -105,14 +107,14 @@ func (m *MockDB) Find(dest interface{}, conds ...interface{}) *gorm.DB {
 	if m.data == nil {
 		m.data = make(map[string]interface{})
 	}
-	if activities, ok := dest.(*[]Activity); ok {
-		*activities = []Activity{
+	if activities, ok := dest.(*[]models.Activity); ok {
+		*activities = []models.Activity{
 			{ID: 1, Title: "Test Activity", TargetCount: 4, LocationID: 1, Description: "Test", CreatedBy: 1},
 		}
 		return &gorm.DB{Error: nil}
 	}
-	if locations, ok := dest.(*[]Location); ok {
-		*locations = []Location{
+	if locations, ok := dest.(*[]models.Location); ok {
+		*locations = []models.Location{
 			{ID: 1, Name: "Test Location", Address: "Test Addr", Latitude: 25.0330, Longitude: 121.5654},
 		}
 		return &gorm.DB{Error: nil}
@@ -136,8 +138,8 @@ func (m *MockDB) Delete(value interface{}, conds ...interface{}) *gorm.DB {
 	return &gorm.DB{Error: nil}
 }
 
-func mockAuthenticatedUser(c *gin.Context) (*User, error) {
-	return &User{ID: 1, Name: "Admin User", IsAdmin: true}, nil
+func mockAuthenticatedUser(c *gin.Context) (*models.User, error) {
+	return &models.User{ID: 1, Name: "Admin User", IsAdmin: true}, nil
 }
 
 func TestListActivities(t *testing.T) {
@@ -162,7 +164,7 @@ func TestListActivities(t *testing.T) {
 	listActivities(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var activities []Activity
+	var activities []models.Activity
 	err := json.Unmarshal(w.Body.Bytes(), &activities)
 	assert.NoError(t, err)
 	assert.Len(t, activities, 1)
@@ -194,7 +196,7 @@ func TestCreateActivity(t *testing.T) {
 	createActivity(c)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-	var createdActivity Activity
+	var createdActivity models.Activity
 	err := json.Unmarshal(w.Body.Bytes(), &createdActivity)
 	assert.NoError(t, err)
 	assert.Equal(t, "New Activity", createdActivity.Title)
@@ -227,7 +229,7 @@ func TestUpdateActivity(t *testing.T) {
 	updateActivity(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var updatedActivity Activity
+	var updatedActivity models.Activity
 	err := json.Unmarshal(w.Body.Bytes(), &updatedActivity)
 	assert.NoError(t, err)
 	assert.Equal(t, "Updated Activity", updatedActivity.Title)
@@ -285,7 +287,7 @@ func TestListLocations(t *testing.T) {
 	listLocations(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var locations []Location
+	var locations []models.Location
 	err := json.Unmarshal(w.Body.Bytes(), &locations)
 	assert.NoError(t, err)
 	assert.Len(t, locations, 1)
@@ -317,7 +319,7 @@ func TestCreateLocation(t *testing.T) {
 	createLocation(c)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-	var createdLocation Location
+	var createdLocation models.Location
 	err := json.Unmarshal(w.Body.Bytes(), &createdLocation)
 	assert.NoError(t, err)
 	assert.Equal(t, "New Location", createdLocation.Name)
@@ -350,7 +352,7 @@ func TestUpdateLocation(t *testing.T) {
 	updateLocation(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var updatedLocation Location
+	var updatedLocation models.Location
 	err := json.Unmarshal(w.Body.Bytes(), &updatedLocation)
 	assert.NoError(t, err)
 	assert.Equal(t, "Updated Location", updatedLocation.Name)
@@ -394,7 +396,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 
 	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = func(c *gin.Context) (*User, error) {
+	getAuthenticatedUser = func(c *gin.Context) (*models.User, error) {
 		return nil, errors.New("unauthorized")
 	}
 	defer func() {

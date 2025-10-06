@@ -141,6 +141,15 @@ definitions:
       updated_at:
         type: integer
     type: object
+  TokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      expires_in:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -462,9 +471,17 @@ paths:
       - application/json
       responses:
         "200":
-          description: 使用者資訊和 JWT token
+          description: 使用者資訊和 tokens
           schema:
-            additionalProperties: true
+            properties:
+              user:
+                $ref: '#/definitions/main.User'
+              access_token:
+                type: string
+              refresh_token:
+                type: string
+              expires_in:
+                type: integer
             type: object
         "400":
           description: 無效的提供者
@@ -486,16 +503,47 @@ paths:
       - application/json
       responses:
         "200":
-          description: JWT token
+          description: JWT tokens
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/TokenResponse'
         "401":
           description: 未登入
           schema:
             $ref: '#/definitions/main.ErrorResponse'
       summary: 交換 session for JWT token
+      tags:
+      - 認證
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用 refresh token 獲取新的 access token 和 refresh token
+      parameters:
+      - description: Refresh token request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 新 tokens
+          schema:
+            $ref: '#/definitions/TokenResponse'
+        "400":
+          description: 無效的請求
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: 無效的 refresh token
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Refresh access token
       tags:
       - 認證
   /logout:
