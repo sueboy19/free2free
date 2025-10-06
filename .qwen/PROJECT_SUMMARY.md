@@ -16,6 +16,7 @@ main.go保持內容精簡，不要把所有的程式碼都放在裡面。
 - **API 文件**：涵蓋所有端點和資料模型的全面 Swagger/OpenAPI 文件
 - 專案曾有冗餘的 JWT 相關函數（`generateJWT`/`validateJWT`）和結構（`JwtClaims`），已移除並改用 `generateJWTToken`/`validateJWTToken` 和 `Claims` 結構，以消除程式碼重複
 - 模型定義散佈於各檔案（建議提取至獨立 models 包）；認證機制結合 Goth OAuth 與 JWT（24小時過期，包含 IsAdmin 旗標）
+- **程式碼重構**：將 main.go 拆分為 handlers 包（處理 OAuth 和 JWT 相關邏輯）、utils 包（認證工具函數），以及 database 包（DB 抽象層），使 main.go 保持簡潔
 
 ## 最近動作
 - 成功從 MySQL 遷移資料庫至 MariaDB，並設定 Docker Compose
@@ -64,6 +65,7 @@ main.go保持內容精簡，不要把所有的程式碼都放在裡面。
 17. [DONE] 整理專案結構和歸檔不必要的檔案
 18. [DONE] 更新文件和注釋
 19. [DONE] 保持模組化結構，不將所有代碼合併至 main.go（符合 Go 最佳實踐）
+20. [DONE] 重構 main.go 以使其更加簡潔，將處理函數提取到 handlers 包，將認證功能提取到 utils 包
 
 關於用戶在 Swagger 中使用 Facebook 登入的問題，這需要實作一個特殊的認證機制，因為 Swagger UI 本身無法直接處理 OAuth 重定向。通常的做法是：
 1. 在 Swagger 中新增一個 API 金鑰認證選項

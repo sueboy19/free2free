@@ -2,9 +2,12 @@ package main
 
 import (
 	"errors"
-	"free2free/models"
 	"net/http"
 	"strconv"
+
+	"free2free/models"
+	"free2free/database"
+	"free2free/utils"
 
 	apperrors "free2free/errors"
 
@@ -35,7 +38,7 @@ func isAuthenticatedAdmin(c *gin.Context) bool {
 	// 實際應用中應該有一個管理員表或管理員標記欄位
 
 	// 取得已認證的使用者
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		return false
 	}
@@ -75,7 +78,7 @@ func SetupAdminRoutes(r *gin.Engine) {
 // @Security ApiKeyAuth
 func listActivities(c *gin.Context) {
 	var activities []models.Activity
-	if err := adminDB.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
+	if err := database.GlobalDB.Conn.Preload("Location").Order("id DESC").Find(&activities).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -111,7 +114,7 @@ func createActivity(c *gin.Context) {
 
 	// 檢查地點是否存在
 	var location models.Location
-	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
+	if err := database.GlobalDB.Conn.First(&location, activity.LocationID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.Error(apperrors.NewValidationError("指定的地點不存在"))
 			return
@@ -121,7 +124,7 @@ func createActivity(c *gin.Context) {
 	}
 
 	// 從認證資訊取得使用者 ID
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -130,7 +133,7 @@ func createActivity(c *gin.Context) {
 	// 設定活動建立者為當前使用者
 	activity.CreatedBy = user.ID
 
-	if err := adminDB.Create(&activity).Error; err != nil {
+	if err := database.GlobalDB.Conn.Create(&activity).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -174,7 +177,7 @@ func updateActivity(c *gin.Context) {
 
 	// 檢查地點是否存在
 	var location models.Location
-	if err := adminDB.First(&location, activity.LocationID).Error; err != nil {
+	if err := database.GlobalDB.Conn.First(&location, activity.LocationID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.Error(apperrors.NewValidationError("指定的地點不存在"))
 			return
@@ -184,7 +187,7 @@ func updateActivity(c *gin.Context) {
 	}
 
 	// 更新活動
-	if err := adminDB.Model(&models.Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
+	if err := database.GlobalDB.Conn.Model(&models.Activity{}).Where("id = ?", id).Updates(activity).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -213,7 +216,7 @@ func deleteActivity(c *gin.Context) {
 		return
 	}
 
-	if err := adminDB.Delete(&models.Activity{}, id).Error; err != nil {
+	if err := database.GlobalDB.Conn.Delete(&models.Activity{}, id).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -233,7 +236,7 @@ func deleteActivity(c *gin.Context) {
 // @Security ApiKeyAuth
 func listLocations(c *gin.Context) {
 	var locations []models.Location
-	if err := adminDB.Order("id DESC").Find(&locations).Error; err != nil {
+	if err := database.GlobalDB.Conn.Order("id DESC").Find(&locations).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -267,7 +270,7 @@ func createLocation(c *gin.Context) {
 		return
 	}
 
-	if err := adminDB.Create(&location).Error; err != nil {
+	if err := database.GlobalDB.Conn.Create(&location).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -310,7 +313,7 @@ func updateLocation(c *gin.Context) {
 	}
 
 	// 更新地點
-	if err := adminDB.Model(&models.Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
+	if err := database.GlobalDB.Conn.Model(&models.Location{}).Where("id = ?", id).Updates(location).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -339,7 +342,7 @@ func deleteLocation(c *gin.Context) {
 		return
 	}
 
-	if err := adminDB.Delete(&models.Location{}, id).Error; err != nil {
+	if err := database.GlobalDB.Conn.Delete(&models.Location{}, id).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}

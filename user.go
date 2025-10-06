@@ -6,13 +6,15 @@ import (
 	"strconv"
 	"time"
 
+	"free2free/models"
+	"free2free/database"
+	"free2free/utils"
+
 	apperrors "free2free/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
-
-	"free2free/models"
 )
 
 // UserAuthMiddleware 使用者認證中介層
@@ -34,7 +36,7 @@ func UserAuthMiddleware() gin.HandlerFunc {
 // 這是一個簡化的實作，實際應用中需要檢查 session 或 token
 func isAuthenticatedUser(c *gin.Context) bool {
 	// 取得已認證的使用者
-	_, err := getAuthenticatedUser(c)
+	_, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		return false
 	}
@@ -74,7 +76,7 @@ func SetupUserRoutes(r *gin.Engine) {
 func listMatches(c *gin.Context) {
 	var matches []models.Match
 	// 只顯示狀態為 open 且時間未到的配對
-	if err := userDB.Preload("Activity").Preload("Organizer").Where("status = ? AND match_time > ?", "open", time.Now()).Order("match_time ASC").Find(&matches).Error; err != nil {
+	if err := database.GlobalDB.Conn.Preload("Activity").Preload("Organizer").Where("status = ? AND match_time > ?", "open", time.Now()).Order("match_time ASC").Find(&matches).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -110,7 +112,7 @@ func createMatch(c *gin.Context) {
 
 	// 檢查活動是否存在
 	var activity models.Activity
-	if err := userDB.First(&activity, match.ActivityID).Error; err != nil {
+	if err := database.GlobalDB.Conn.First(&activity, match.ActivityID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.Error(apperrors.NewValidationError("指定的活動不存在"))
 			return
@@ -120,7 +122,7 @@ func createMatch(c *gin.Context) {
 	}
 
 	// 從認證資訊取得使用者 ID
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -130,13 +132,13 @@ func createMatch(c *gin.Context) {
 	match.OrganizerID = user.ID
 	match.Status = "open"
 
-	if err := userDB.Create(&match).Error; err != nil {
+	if err := database.GlobalDB.Conn.Create(&match).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 預加載關聯資料
-	userDB.Preload("Activity").Preload("Organizer").First(&match, match.ID)
+	database.GlobalDB.Conn.Preload("Activity").Preload("Organizer").First(&match, match.ID)
 	c.JSON(http.StatusCreated, match)
 }
 
@@ -162,7 +164,7 @@ func joinMatch(c *gin.Context) {
 
 	// 檢查配對局是否存在且可參與
 	var match models.Match
-	if err := userDB.Where("id = ? AND status = ? AND match_time > ?", matchID, "open", time.Now()).First(&match).Error; err != nil {
+	if err := database.GlobalDB.Conn.Where("id = ? AND status = ? AND match_time > ?", matchID, "open", time.Now()).First(&match).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.Error(apperrors.NewValidationError("指定的配對局不存在或已關閉"))
 			return
@@ -172,7 +174,7 @@ func joinMatch(c *gin.Context) {
 	}
 
 	// 從認證資訊取得使用者 ID
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -182,7 +184,7 @@ func joinMatch(c *gin.Context) {
 
 	// 檢查使用者是否已經參與此配對局
 	var existingParticipant models.MatchParticipant
-	err = userDB.Where("match_id = ? AND user_id = ?", matchID, userID).First(&existingParticipant).Error
+	err = database.GlobalDB.Conn.Where("match_id = ? AND user_id = ?", matchID, userID).First(&existingParticipant).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.Error(apperrors.MapGORMError(err))
 		return
@@ -202,13 +204,13 @@ func joinMatch(c *gin.Context) {
 		JoinedAt: time.Now(),
 	}
 
-	if err := userDB.Create(&participant).Error; err != nil {
+	if err := database.GlobalDB.Conn.Create(&participant).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 預加載關聯資料
-	userDB.Preload("Match").Preload("User").First(&participant, participant.ID)
+	database.GlobalDB.Conn.Preload("Match").Preload("User").First(&participant, participant.ID)
 	c.JSON(http.StatusCreated, participant)
 }
 
@@ -224,7 +226,7 @@ func joinMatch(c *gin.Context) {
 // @Security ApiKeyAuth
 func listPastMatches(c *gin.Context) {
 	// 從認證資訊取得使用者 ID
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -234,7 +236,7 @@ func listPastMatches(c *gin.Context) {
 
 	var matches []models.Match
 	// 取得該使用者參與過的已完成的配對局
-	if err := userDB.Joins("JOIN match_participants mp ON matches.id = mp.match_id").
+	if err := database.GlobalDB.Conn.Joins("JOIN match_participants mp ON matches.id = mp.match_id").
 		Where("mp.user_id = ? AND matches.status = ?", userID, "completed").
 		Order("matches.match_time DESC").
 		Preload("Activity").

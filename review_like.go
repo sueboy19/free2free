@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"strconv"
 
+	"free2free/models"
+	"free2free/database"
+	"free2free/utils"
+
 	apperrors "free2free/errors"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-
-	"free2free/models"
 )
 
 // SetupReviewLikeRoutes 設定評論點讚/倒讚路由
@@ -46,7 +48,7 @@ func likeReview(c *gin.Context) {
 	}
 
 	// 從認證資訊取得使用者 ID
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -56,7 +58,7 @@ func likeReview(c *gin.Context) {
 
 	// 檢查評論是否存在
 	var review models.Review
-	if err := reviewLikeDB.First(&review, reviewID).Error; err != nil {
+	if err := database.GlobalDB.Conn.First(&review, reviewID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.Error(apperrors.NewValidationError("指定的評論不存在"))
 			return
@@ -67,7 +69,7 @@ func likeReview(c *gin.Context) {
 
 	// 檢查使用者是否已經對此評論點讚或倒讚
 	var existingLike models.ReviewLike
-	err = reviewLikeDB.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
+	err = database.GlobalDB.Conn.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.Error(apperrors.MapGORMError(err))
 		return
@@ -81,7 +83,7 @@ func likeReview(c *gin.Context) {
 
 	// 如果已經倒讚，則更新為點讚
 	if err == nil && !existingLike.IsLike {
-		if err := reviewLikeDB.Model(&existingLike).Update("is_like", true).Error; err != nil {
+		if err := database.GlobalDB.Conn.Model(&existingLike).Update("is_like", true).Error; err != nil {
 			c.Error(apperrors.MapGORMError(err))
 			return
 		}
@@ -97,13 +99,13 @@ func likeReview(c *gin.Context) {
 		IsLike:   true,
 	}
 
-	if err := reviewLikeDB.Create(&reviewLike).Error; err != nil {
+	if err := database.GlobalDB.Conn.Create(&reviewLike).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 預加載關聯資料
-	reviewLikeDB.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
+	database.GlobalDB.Conn.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
 	c.JSON(http.StatusCreated, reviewLike)
 }
 
@@ -128,7 +130,7 @@ func dislikeReview(c *gin.Context) {
 	}
 
 	// 從認證資訊取得使用者 ID
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -138,7 +140,7 @@ func dislikeReview(c *gin.Context) {
 
 	// 檢查評論是否存在
 	var review models.Review
-	if err := reviewLikeDB.First(&review, reviewID).Error; err != nil {
+	if err := database.GlobalDB.Conn.First(&review, reviewID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.Error(apperrors.NewValidationError("指定的評論不存在"))
 			return
@@ -149,7 +151,7 @@ func dislikeReview(c *gin.Context) {
 
 	// 檢查使用者是否已經對此評論點讚或倒讚
 	var existingLike models.ReviewLike
-	err = reviewLikeDB.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
+	err = database.GlobalDB.Conn.Where("user_id = ? AND review_id = ?", userID, reviewID).First(&existingLike).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.Error(apperrors.MapGORMError(err))
 		return
@@ -163,7 +165,7 @@ func dislikeReview(c *gin.Context) {
 
 	// 如果已經點讚，則更新為倒讚
 	if err == nil && existingLike.IsLike {
-		if err := reviewLikeDB.Model(&existingLike).Update("is_like", false).Error; err != nil {
+		if err := database.GlobalDB.Conn.Model(&existingLike).Update("is_like", false).Error; err != nil {
 			c.Error(apperrors.MapGORMError(err))
 			return
 		}
@@ -179,12 +181,12 @@ func dislikeReview(c *gin.Context) {
 		IsLike:   false,
 	}
 
-	if err := reviewLikeDB.Create(&reviewLike).Error; err != nil {
+	if err := database.GlobalDB.Conn.Create(&reviewLike).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 預加載關聯資料
-	reviewLikeDB.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
+	database.GlobalDB.Conn.Preload("Review").Preload("User").First(&reviewLike, reviewLike.ID)
 	c.JSON(http.StatusCreated, reviewLike)
 }

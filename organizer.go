@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"strconv"
 
+	"free2free/models"
+	"free2free/database"
+	"free2free/utils"
+
 	apperrors "free2free/errors"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-
-	"free2free/models"
 )
 
 // OrganizerAuthMiddleware 開局者認證中介層
@@ -39,14 +41,14 @@ func OrganizerAuthMiddleware() gin.HandlerFunc {
 // 這是一個簡化的實作，實際應用中需要檢查 session 或 token
 func isMatchOrganizer(c *gin.Context, matchID int64) bool {
 	// 取得已認證的使用者
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		return false
 	}
 
 	// 檢查配對局是否存在且開局者為當前使用者
 	var match models.Match
-	err = organizerDB.Where("id = ? AND organizer_id = ?", matchID, user.ID).First(&match).Error
+	err = database.GlobalDB.Conn.Where("id = ? AND organizer_id = ?", matchID, user.ID).First(&match).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false
 	}
@@ -98,7 +100,7 @@ func approveParticipant(c *gin.Context) {
 
 	// 檢查參與者是否屬於此配對局
 	var participant models.MatchParticipant
-	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
+	if err := database.GlobalDB.Conn.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.Error(apperrors.NewValidationError("指定的參與者不存在或不屬於此配對局"))
 			return
@@ -108,7 +110,7 @@ func approveParticipant(c *gin.Context) {
 	}
 
 	// 更新參與者狀態為 approved
-	if err := organizerDB.Model(&participant).Update("status", "approved").Error; err != nil {
+	if err := database.GlobalDB.Conn.Model(&participant).Update("status", "approved").Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
@@ -147,7 +149,7 @@ func rejectParticipant(c *gin.Context) {
 
 	// 檢查參與者是否屬於此配對局
 	var participant models.MatchParticipant
-	if err := organizerDB.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
+	if err := database.GlobalDB.Conn.Where("id = ? AND match_id = ?", participantID, matchID).First(&participant).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.Error(apperrors.NewValidationError("指定的參與者不存在或不屬於此配對局"))
 			return
@@ -157,7 +159,7 @@ func rejectParticipant(c *gin.Context) {
 	}
 
 	// 更新參與者狀態為 rejected
-	if err := organizerDB.Model(&participant).Update("status", "rejected").Error; err != nil {
+	if err := database.GlobalDB.Conn.Model(&participant).Update("status", "rejected").Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}

@@ -6,13 +6,15 @@ import (
 	"strconv"
 	"time"
 
+	"free2free/models"
+	"free2free/database"
+	"free2free/utils"
+
 	apperrors "free2free/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
-
-	"free2free/models"
 )
 
 // ReviewAuthMiddleware 評分認證中介層
@@ -43,14 +45,14 @@ func ReviewAuthMiddleware() gin.HandlerFunc {
 // 且配對局已結束但在評分時間範圍內
 func canReviewMatch(c *gin.Context, matchID int64) bool {
 	// 取得已認證的使用者
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		return false
 	}
 
 	// 檢查使用者是否參與了指定的配對局
 	var participant models.MatchParticipant
-	err = reviewDB.Where("match_id = ? AND user_id = ? AND status = ?", matchID, user.ID, "approved").First(&participant).Error
+	err = database.GlobalDB.Conn.Where("match_id = ? AND user_id = ? AND status = ?", matchID, user.ID, "approved").First(&participant).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false
 	}
@@ -60,7 +62,7 @@ func canReviewMatch(c *gin.Context, matchID int64) bool {
 
 	// 檢查配對局是否已完成
 	var match models.Match
-	err = reviewDB.Where("id = ? AND status = ?", matchID, "completed").First(&match).Error
+	err = database.GlobalDB.Conn.Where("id = ? AND status = ?", matchID, "completed").First(&match).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false
 	}
@@ -123,7 +125,7 @@ func createReview(c *gin.Context) {
 	}
 
 	// 從認證資訊取得評分者 ID
-	user, err := getAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -135,7 +137,7 @@ func createReview(c *gin.Context) {
 
 	// 檢查是否已經對此人在此配對局評分過
 	var existingReview models.Review
-	err = reviewDB.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?",
+	err = database.GlobalDB.Conn.Where("reviewer_id = ? AND reviewee_id = ? AND match_id = ?",
 		review.ReviewerID, review.RevieweeID, review.MatchID).First(&existingReview).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		c.Error(apperrors.MapGORMError(err))
@@ -149,12 +151,12 @@ func createReview(c *gin.Context) {
 	}
 
 	// 建立新的評分記錄
-	if err := reviewDB.Create(&review).Error; err != nil {
+	if err := database.GlobalDB.Conn.Create(&review).Error; err != nil {
 		c.Error(apperrors.MapGORMError(err))
 		return
 	}
 
 	// 預加載關聯資料
-	reviewDB.Preload("Match").Preload("Reviewer").Preload("Reviewee").First(&review, review.ID)
+	database.GlobalDB.Conn.Preload("Match").Preload("Reviewer").Preload("Reviewee").First(&review, review.ID)
 	c.JSON(http.StatusCreated, review)
 }
