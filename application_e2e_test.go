@@ -13,7 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
+	"free2free/handlers"
 	"free2free/models"
+	"free2free/routes"
 )
 
 // TestFullApplicationFlow 測試完整的應用程式流程
@@ -98,32 +100,32 @@ func createTestRouter() *gin.Engine {
 	})
 
 	// 設定 session middleware
-	router.Use(sessionsMiddleware())
+	router.Use(testSessionsMiddlewareE2E())
 
 	// OAuth 認證路由
-	router.GET("/auth/:provider", oauthBegin)
-	router.GET("/auth/:provider/callback", oauthCallback)
+	router.GET("/auth/:provider", handlers.OauthBegin)
+	router.GET("/auth/:provider/callback", handlers.OauthCallback)
 
 	// 登出路由
-	router.GET("/logout", logout)
+	router.GET("/logout", handlers.Logout)
 
 	// 受保護的路由範例
-	router.GET("/profile", profile)
+	router.GET("/profile", handlers.Profile)
 
 	// 設定管理後台路由
-	SetupAdminRoutes(router)
+	routes.SetupAdminRoutes(router)
 
 	// 設定使用者路由
-	SetupUserRoutes(router)
+	routes.SetupUserRoutes(router)
 
 	// 設定開局者路由
-	SetupOrganizerRoutes(router)
+	routes.SetupOrganizerRoutes(router)
 
 	// 設定評分路由
-	SetupReviewRoutes(router)
+	routes.SetupReviewRoutes(router)
 
 	// 設定評論點讚/倒讚路由
-	SetupReviewLikeRoutes(router)
+	routes.SetupReviewLikeRoutes(router)
 
 	return router
 }
@@ -289,4 +291,13 @@ func testReviewLikeEndpointsUnauthorized(t *testing.T, baseURL string) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 	fmt.Println("  ✓ 評論點讚/倒讚端點（未授權）測試通過")
+}
+
+// testSessionsMiddlewareE2E 模擬 session 中介層，用於E2E測試
+func testSessionsMiddlewareE2E() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 為測試目的，模擬一個空的 session
+		c.Set("session", nil)
+		c.Next()
+	}
 }

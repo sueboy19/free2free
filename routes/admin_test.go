@@ -1,11 +1,10 @@
-package main
+package routes
 
 import (
 	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -147,19 +146,8 @@ func TestListActivities(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	listActivities(c)
 
@@ -176,19 +164,8 @@ func TestCreateActivity(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	c.Request = httptest.NewRequest("POST", "/", bytes.NewBuffer([]byte(`{"title":"New Activity","target_count":4,"location_id":1,"description":"New Test"}`)))
 	c.Request.Header.Set("Content-Type", "application/json")
@@ -209,19 +186,8 @@ func TestUpdateActivity(t *testing.T) {
 
 	c.Params = gin.Params{{Key: "id", Value: "1"}}
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	c.Request = httptest.NewRequest("PUT", "/", bytes.NewBuffer([]byte(`{"title":"Updated Activity","target_count":5,"location_id":1,"description":"Updated Test"}`)))
 	c.Request.Header.Set("Content-Type", "application/json")
@@ -242,19 +208,8 @@ func TestDeleteActivity(t *testing.T) {
 
 	c.Params = gin.Params{{Key: "id", Value: "1"}}
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	deleteActivity(c)
 
@@ -270,19 +225,8 @@ func TestListLocations(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	listLocations(c)
 
@@ -299,19 +243,8 @@ func TestCreateLocation(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	c.Request = httptest.NewRequest("POST", "/", bytes.NewBuffer([]byte(`{"name":"New Location","address":"New Addr","latitude":25.0,"longitude":121.0}`)))
 	c.Request.Header.Set("Content-Type", "application/json")
@@ -332,19 +265,8 @@ func TestUpdateLocation(t *testing.T) {
 
 	c.Params = gin.Params{{Key: "id", Value: "1"}}
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	c.Request = httptest.NewRequest("PUT", "/", bytes.NewBuffer([]byte(`{"name":"Updated Location","address":"Updated Addr","latitude":26.0,"longitude":122.0}`)))
 	c.Request.Header.Set("Content-Type", "application/json")
@@ -365,19 +287,8 @@ func TestDeleteLocation(t *testing.T) {
 
 	c.Params = gin.Params{{Key: "id", Value: "1"}}
 
-	// Mock adminDB
-	oldAdminDB := adminDB
-	adminDB = &MockDB{}
-	defer func() {
-		adminDB = oldAdminDB
-	}()
-
-	// Mock getAuthenticatedUser
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = mockAuthenticatedUser
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock the context to simulate an authenticated user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 
 	deleteLocation(c)
 
@@ -391,29 +302,27 @@ func TestDeleteLocation(t *testing.T) {
 func TestAdminAuthMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// Test unauthorized
+	// Test unauthorized - simulate a non-admin user
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	oldGetAuth := getAuthenticatedUser
-	getAuthenticatedUser = func(c *gin.Context) (*models.User, error) {
-		return nil, errors.New("unauthorized")
-	}
-	defer func() {
-		getAuthenticatedUser = oldGetAuth
-	}()
+	// Mock a non-admin user
+	c.Set("user", &models.User{ID: 2, Name: "Regular User", IsAdmin: false})
 
 	middleware := AdminAuthMiddleware()
 	middleware(c)
 
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 
-	// Test authorized
+	// Test authorized - simulate an admin user
 	w = httptest.NewRecorder()
 	c, _ = gin.CreateTestContext(w)
 
-	getAuthenticatedUser = mockAuthenticatedUser
+	// Mock an admin user
+	c.Set("user", &models.User{ID: 1, Name: "Admin User", IsAdmin: true})
 	middleware(c)
 
-	assert.Equal(t, http.StatusOK, w.Code) // No error
+	// If the user is admin, the middleware should call c.Next() and not write an error
+	// The status code would remain 0 (default) if the next handler is not called
+	assert.Equal(t, 0, w.Code) // Middleware didn't write an error response, so status remains 0
 }

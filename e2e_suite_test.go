@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"free2free/handlers"
 	"free2free/models"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"free2free/routes"
 )
 
 // E2ETestSuite 代表端到端測試套件
@@ -40,32 +43,32 @@ func (suite *E2ETestSuite) SetupRoutes() {
 	})
 
 	// 設定 session middleware
-	suite.router.Use(sessionsMiddleware())
+	suite.router.Use(testSessionsMiddlewareSuite())
 
 	// OAuth 認證路由
-	suite.router.GET("/auth/:provider", oauthBegin)
-	suite.router.GET("/auth/:provider/callback", oauthCallback)
+	suite.router.GET("/auth/:provider", handlers.OauthBegin)
+	suite.router.GET("/auth/:provider/callback", handlers.OauthCallback)
 
 	// 登出路由
-	suite.router.GET("/logout", logout)
+	suite.router.GET("/logout", handlers.Logout)
 
 	// 受保護的路由範例
-	suite.router.GET("/profile", profile)
+	suite.router.GET("/profile", handlers.Profile)
 
 	// 設定管理後台路由
-	SetupAdminRoutes(suite.router)
+	routes.SetupAdminRoutes(suite.router)
 
 	// 設定使用者路由
-	SetupUserRoutes(suite.router)
+	routes.SetupUserRoutes(suite.router)
 
 	// 設定開局者路由
-	SetupOrganizerRoutes(suite.router)
+	routes.SetupOrganizerRoutes(suite.router)
 
 	// 設定評分路由
-	SetupReviewRoutes(suite.router)
+	routes.SetupReviewRoutes(suite.router)
 
 	// 設定評論點讚/倒讚路由
-	SetupReviewLikeRoutes(suite.router)
+	routes.SetupReviewLikeRoutes(suite.router)
 }
 
 // TestAPIEndpoint 測試單個API端點
@@ -185,4 +188,13 @@ func TestE2EFlow(t *testing.T) {
 	})
 
 	fmt.Println("端到端測試完成！")
+}
+
+// testSessionsMiddlewareSuite 模擬 session 中介層，用於測試套件
+func testSessionsMiddlewareSuite() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 為測試目的，模擬一個空的 session
+		c.Set("session", nil)
+		c.Next()
+	}
 }
