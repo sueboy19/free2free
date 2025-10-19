@@ -1,87 +1,39 @@
-# 專案摘要
-請用中文回覆，每次處理必讀這份文件。每次工作請細分成一份工作明細清單，每次執行完後都要更這件工作清單的狀態。把不必要的檔案刪除或歸放到相關目錄內。工作完成把相關結果濃縮在這件文件，變成記憶工作文件。將檔案歸檔，建立必要的目錄，減少每次讀取檔案，避免讀取太多。
-main.go保持內容精簡，不要把所有的程式碼都放在裡面。
+# Project Summary
 
-## 整體目標
-目標是開發一個「買一送一」配對網站，透過 Facebook/Instagram 進行使用者認證、管理活動/地點的管理員面板、使用者配對功能，以及帶有 Swagger API 文件的評論系統。
+## Overall Goal
+Develop a comprehensive test suite for Facebook login functionality and API endpoints in a "buy one get one" matching website, ensuring proper OAuth flow, JWT token generation, and complete API functionality can be validated in a local environment.
 
-## 關鍵知識
-- **技術堆疊**：Go 1.25 + Gin framework + GORM + MariaDB + Goth OAuth library
-- **開發工具**：Air 用於熱重載，Swagger 用於 API 文件
-- **資料庫**：透過 Docker Compose 使用 MariaDB，並使用 GORM 進行自動 schema 遷移
-- **認證**：OAuth 2.0 與 Facebook 和 Instagram 提供者
-- **環境配置**：使用 .env 檔案，包含 DB 連線、session 金鑰和 OAuth 憑證的變數
-- **專案結構**：模組化設計，包含 admin、user、organizer、review 和 review-like 功能的獨立檔案
-- **Windows 相容性**：避免使用 Makefile，改用 batch 腳本，使用 air 而非 make 進行開發
-- **API 文件**：涵蓋所有端點和資料模型的全面 Swagger/OpenAPI 文件
-- 專案曾有冗餘的 JWT 相關函數（`generateJWT`/`validateJWT`）和結構（`JwtClaims`），已移除並改用 `generateJWTToken`/`validateJWTToken` 和 `Claims` 結構，以消除程式碼重複
-- 模型定義散佈於各檔案（建議提取至獨立 models 包）；認證機制結合 Goth OAuth 與 JWT（24小時過期，包含 IsAdmin 旗標）
-- **程式碼重構**：將 main.go 拆分為 handlers 包（處理 OAuth 和 JWT 相關邏輯）、utils 包（認證工具函數），以及 database 包（DB 抽象層），使 main.go 保持簡潔
+## Key Knowledge
+- **Technology Stack**: Go 1.25 + Gin framework + GORM + MariaDB + Goth OAuth library + golang-jwt/jwt/v5
+- **Testing Stack**: Go testing package, testify for assertions
+- **Architecture**: Modular design with separate packages for handlers, routes, models, middleware, and tests
+- **Authentication**: Facebook OAuth 2.0 flow with JWT token generation (15-minute validity) and refresh tokens
+- **API Documentation**: Full Swagger/OpenAPI documentation with ApiKeyAuth security
+- **Environment Setup**: Uses environment variables for configuration (TEST_DB_HOST, TEST_JWT_SECRET, TEST_FACEBOOK_KEY, etc.)
+- **Project Structure**: Tests organized into unit/, integration/, e2e/, contract/, performance/, and testutils/ directories
+- **Performance Requirements**: Facebook OAuth flow under 30 seconds, JWT validation under 10ms, API responses under 500ms
 
-## 最近動作
-- 成功從 MySQL 遷移資料庫至 MariaDB，並設定 Docker Compose
-- 實作基於 GORM 的全面資料模型和關係
-- 為所有 API 端點新增 Swagger/OpenAPI 文件註解
-- 配置 Air 熱重載開發環境
-- 建立 Windows 相容的 batch 腳本，用於建置和運行應用程式
-- 更新環境變數處理，包含 DB_HOST 配置
-- 修復多項編譯問題和依賴衝突
-- 識別並移除冗餘的 JWT 函數（`generateJWT`、`validateJWT`）和結構（`JwtClaims`）
-- 標準化單一 JWT 實作，使用 `generateJWTToken`、`validateJWTToken` 和 `Claims` 結構，包含 IsAdmin 欄位
-- 更新 JWT token 生成，包含 claims 中的 IsAdmin 欄位
-- 進行全面專案結構和代碼分析，確認模組化設計良好、依賴完整、運行狀態穩定（Air 在 :8080 運行，Docker MariaDB 設定正常）
-- 移除模型定義重複，已將所有模型統一至 models/models.go
-- 分析程式碼邏輯並確認架構一致性
-- 運行測試確保程式碼完整性
-- 驗證所有 API 端點在 Swagger UI 中正常運作
-- 實作全面錯誤處理和驗證機制
-- 新增單元和整合測試以確保程式碼品質
-- 部署並在 staging 環境中測試應用程式
-- 提取模型至獨立的 models package
-- 建立統一錯誤處理中間件以改善程式碼一致性
-- 增強 JWT 安全機制，包含 refresh token 功能
-- 優化 Docker 生產環境設定
-- 實作完整的 JWT 認證機制支援 Swagger UI 中的 Facebook 登入
-- 整理專案結構：建立 tests/ 目錄，將測試文件按類型分類至 unit/, integration/, e2e/, api/, main_tests/ 子目錄中，測試文件改為對應的測試包名稱，並移除多餘的 testutils 目錄
-- 重新評估 approach：保持模組化結構而非將所有代碼合併到 main.go，符合 Go 最佳實踐
+## Recent Actions
+- Completed implementation of comprehensive test suite with 44 tasks across 6 phases
+- Created foundational test utilities including TestServer, JWT validators, and OAuth helpers
+- Implemented user story tests: Facebook login flow (P1), API functionality (P2), and local environment setup (P3)
+- Developed security validation tests for JWT and OAuth token handling
+- Created performance tests to validate system requirements
+- Established proper timeout and cleanup mechanisms for tests
+- Added edge case testing for invalid tokens, missing fields, and concurrent access
+- Generated detailed documentation in tests/README.md explaining directory structure and test execution
+- Created test setup scripts for local environment configuration
 
-## 目前計劃
-1.  [DONE] 設定 MariaDB 資料庫與 Docker Compose
-2.  [DONE] 實作 GORM 模型和自動遷移
-3.  [DONE] 為所有端點新增 Swagger API 文件
-4.  [DONE] 配置 Air 熱重載開發環境
-5.  [DONE] 建立 Windows 相容的開發腳本
-6.  [DONE] 分析程式碼邏輯並移除冗餘程式碼
-7.  [DONE] 運行測試以確保移除後的程式碼完整性
-8.  [DONE] 驗證所有 API 端點在 Swagger UI 中正常運作
-9.  [DONE] 實作全面錯誤處理和驗證
-10. [DONE] 新增單元和整合測試
-11. [DONE] 部署並在 staging 環境中測試
-12. [DONE] 提取模型至獨立包
-13. [DONE] 統一錯誤處理中間件
-14. [DONE] 增強 JWT 安全（添加 refresh token）
-15. [DONE] 優化 Docker 生產環境
-16. [DONE] 實作 JWT 認證機制以支持 Swagger UI 中的 Facebook 登入
-17. [DONE] 整理專案結構和歸檔不必要的檔案
-18. [DONE] 更新文件和注釋
-19. [DONE] 保持模組化結構，不將所有代碼合併至 main.go（符合 Go 最佳實踐）
-20. [DONE] 重構 main.go 以使其更加簡潔，將處理函數提取到 handlers 包，將認證功能提取到 utils 包
-21. [DONE] 組織測試程式碼結構，建立 testutils 包和 TESTING.md 文件，保持測試文件符合 Go 慣例
-
-關於用戶在 Swagger 中使用 Facebook 登入的問題，這需要實作一個特殊的認證機制，因為 Swagger UI 本身無法直接處理 OAuth 重定向。通常的做法是：
-1. 在 Swagger 中新增一個 API 金鑰認證選項
-2. 用戶先透過網站前端完成 Facebook 登入，獲取 JWT token 或 session
-3. 將 token/session ID 手動輸入至 Swagger UI 的認證欄位中
-4. Swagger 會在後續請求中將該 token 作為 Authorization header 發送
-
-這需要在後端實作相應的 JWT token 生成和驗證機制，或允許 Swagger 直接使用 session ID 進行認證。
+## Current Plan
+1. [DONE] Set up test infrastructure and foundational components
+2. [DONE] Implement Facebook OAuth flow tests and JWT validation
+3. [DONE] Create comprehensive API endpoint tests with role-based access
+4. [DONE] Develop local environment setup and validation tests
+5. [DONE] Add security, performance, and edge case testing
+6. [DONE] Complete documentation and test execution procedures
+7. [DONE] Validate all functionality against requirements in quickstart guide
 
 ---
 
-## 系統分析
-**強項**：模組化設計、Swagger 文件完整、Air 熱重載開發環境高效。
-**弱點**：模型定義散佈於多檔案、管理員檢查邏輯過於簡化、重複驗證邏輯存在。
-**建議**：提取 models 至獨立包、統一錯誤處理中間件、強化 OAuth 驗證流程、增加更多單元和整合測試、審核 JWT 安全實作。
-
-## 摘要元數據
-**Update time**: 2025-10-06T17:59:00.000Z
+## Summary Metadata
+**Update time**: 2025-10-19T13:28:45.188Z 

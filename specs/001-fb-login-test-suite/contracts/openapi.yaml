@@ -1,0 +1,149 @@
+# OpenAPI Contract: Facebook 登入與 API 測試套件
+
+## Facebook OAuth 端點
+
+### POST /auth/facebook
+啟動 Facebook OAuth 流程
+
+**Parameters**:
+- `provider` (path): OAuth 提供者 (facebook)
+
+**Responses**:
+- 302: 重定向到 Facebook 認證頁面
+
+### GET /auth/facebook/callback
+處理 Facebook OAuth 回調
+
+**Parameters**:
+- `provider` (path): OAuth 提供者 (facebook)
+
+**Responses**:
+- 200: 
+  ```json
+  {
+    "user": {
+      "id": 1,
+      "name": "User Name",
+      "email": "user@example.com",
+      "avatar_url": "https://example.com/avatar.jpg",
+      "is_admin": false
+    },
+    "access_token": "jwt_token_string",
+    "refresh_token": "refresh_token_string",
+    "expires_in": 900
+  }
+  ```
+
+## 受保護的 API 端點 (需要 JWT token)
+
+### GET /profile
+獲取當前用戶資訊
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 200: 用戶資訊對象
+
+### GET /user/matches
+獲取未過期的配對列表
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 200: 配對列表
+
+### POST /user/matches
+創建新的配對局
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Request Body**:
+```json
+{
+  "activity_id": 1,
+  "match_time": "2025-10-20T14:00:00Z"
+}
+```
+
+**Responses**:
+- 201: 新創建的配對對象
+
+### POST /user/matches/{id}/join
+參與指定配對局
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 201: 配對參與者對象
+
+### GET /user/past-matches
+獲取過去參與的配對列表
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 200: 過去配對列表
+
+### POST /review/matches/{id}
+為配對活動中的其他參與者評分
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Request Body**:
+```json
+{
+  "reviewee_id": 2,
+  "score": 5,
+  "comment": "Great experience!"
+}
+```
+
+**Responses**:
+- 201: 新創建的評論對象
+
+### POST /review-like/reviews/{id}/like
+點讚評論
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 201: 點讚對象
+
+### POST /review-like/reviews/{id}/dislike
+倒讚評論
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 201: 倒讚對象
+
+### PUT /organizer/matches/{id}/participants/{participant_id}/approve
+審核通過參與者
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 200: 更新的參與者對象
+
+### PUT /organizer/matches/{id}/participants/{participant_id}/reject
+審核拒絕參與者
+
+**Headers**:
+- Authorization: Bearer {jwt_token}
+
+**Responses**:
+- 200: 更新的參與者對象
+
+### GET/POST/PUT/DELETE 管理員端點
+- `/admin/activities` - 配對活動管理
+- `/admin/locations` - 地點管理
+(所有管理員端點都需要 JWT token 且用戶必須是管理員)
