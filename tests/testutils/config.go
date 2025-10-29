@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// Use modernc.org/sqlite as the underlying driver (no CGO required)
+import _ "modernc.org/sqlite"
+
 // TestConfig holds configuration for tests
 type TestConfig struct {
 	DatabaseURL    string

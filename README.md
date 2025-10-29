@@ -15,6 +15,7 @@
 - 資料庫：MariaDB (透過 Docker) + GORM
 - OAuth 認證：Goth 套件
 - Session 管理：Gorilla Sessions
+- 測試：平台獨立測試（無需 CGO 依賴）
 
 ## 安裝與設定
 
@@ -96,6 +97,18 @@ go build
 應用程式集成了 Swagger UI，可以在以下地址訪問 API 文檔：
 ```
 http://localhost:8080/swagger/index.html
+```
+
+## 測試
+
+### 平台獨立測試
+本專案已實現平台獨立測試，無需 CGO 依賴：
+```bash
+# 在無需 CGO 的環境中執行測試
+CGO_ENABLED=0 go test ./tests/... -v
+
+# 或在標準環境中執行測試
+go test ./tests/... -v
 ```
 
 ## 開發指南
