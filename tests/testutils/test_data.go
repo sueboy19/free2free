@@ -1,234 +1,172 @@
 package testutils
 
 import (
-	"fmt"
-
-	"free2free/models"
-	"gorm.io/gorm"
+	"math/rand"
+	"time"
 )
 
-// TestUser represents a test user for testing purposes
-type TestUser struct {
-	ID           int64
-	Name         string
-	Email        string
-	IsAdmin      bool
-	SocialID     string
-	SocialProvider string
-	AvatarURL    string
-}
-
-// TestDataGenerator provides utilities to generate test data
+// TestDataGenerator provides utilities for generating test data
 type TestDataGenerator struct {
-	DB *gorm.DB
+	rand *rand.Rand
 }
 
 // NewTestDataGenerator creates a new test data generator
-func NewTestDataGenerator(db *gorm.DB) *TestDataGenerator {
+func NewTestDataGenerator() *TestDataGenerator {
 	return &TestDataGenerator{
-		DB: db,
+		rand: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
-// CreateTestUser creates a test user in the database
-func (gen *TestDataGenerator) CreateTestUser(name, email string, isAdmin bool) (*models.User, error) {
-	user := &models.User{
-		SocialID:       fmt.Sprintf("test_%s_social_id", name),
-		SocialProvider: "facebook", // Default to Facebook for test
-		Name:           name,
-		Email:          email,
-		AvatarURL:      fmt.Sprintf("https://example.com/%s-avatar.jpg", name),
-		IsAdmin:        isAdmin,
+// GenerateUser creates a mock user for testing
+func (g *TestDataGenerator) GenerateUser(id uint, email, name, provider string) TestUser {
+	if email == "" {
+		email = g.GenerateEmail()
+	}
+	if name == "" {
+		name = g.GenerateName()
+	}
+	if provider == "" {
+		provider = g.GenerateProvider()
 	}
 
-	result := gen.DB.Create(user)
-	if result.Error != nil {
-		return nil, result.Error
+	return TestUser{
+		ID:       id,
+		Email:    email,
+		Name:     name,
+		Provider: provider,
+		Role:     "user",
+	}
+}
+
+// GenerateActivity creates a mock activity for testing
+func (g *TestDataGenerator) GenerateActivity(id uint, title, description string, locationID, creatorID uint) TestActivity {
+	if title == "" {
+		title = g.GenerateTitle()
+	}
+	if description == "" {
+		description = g.GenerateDescription()
 	}
 
-	return user, nil
-}
+	statuses := []string{"pending", "approved", "rejected", "active"}
+	status := statuses[g.rand.Intn(len(statuses))]
 
-// CreateTestAdmin creates a test admin user
-func (gen *TestDataGenerator) CreateTestAdmin() (*models.User, error) {
-	return gen.CreateTestUser("Test Admin", "admin@test.com", true)
-}
-
-// CreateTestRegularUser creates a test regular user
-func (gen *TestDataGenerator) CreateTestRegularUser() (*models.User, error) {
-	return gen.CreateTestUser("Test User", "user@test.com", false)
-}
-
-// CreateTestLocation creates a test location
-func (gen *TestDataGenerator) CreateTestLocation(name, address string, lat, lng float64) (*models.Location, error) {
-	location := &models.Location{
-		Name:      name,
-		Address:   address,
-		Latitude:  lat,
-		Longitude: lng,
-	}
-
-	result := gen.DB.Create(location)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return location, nil
-}
-
-// CreateTestActivity creates a test activity
-func (gen *TestDataGenerator) CreateTestActivity(title, description string, locationID uint, targetCount int) (*models.Activity, error) {
-	activity := &models.Activity{
+	return TestActivity{
+		ID:          id,
 		Title:       title,
 		Description: description,
 		LocationID:  locationID,
-		TargetCount: targetCount,
-		CreatedBy:   1, // Default to first user
+		Status:      status,
+		CreatorID:   creatorID,
 	}
-
-	result := gen.DB.Create(activity)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return activity, nil
 }
 
-// CreateTestMatch creates a test match
-func (gen *TestDataGenerator) CreateTestMatch(activityID, organizerID uint, matchTime string) (*models.Match, error) {
-	match := &models.Match{
-		ActivityID:  activityID,
-		OrganizerID: organizerID,
-		MatchTime:   matchTime,
-		Status:      "open", // Default status
-	}
+// GenerateEmail creates a random email for testing
+func (g *TestDataGenerator) GenerateEmail() string {
+	adjectives := []string{"happy", "quick", "bright", "clever", "friendly", "smart", "cool", "sunny", "brave", "calm"}
+	nouns := []string{"cat", "dog", "bird", "fish", "lion", "tiger", "bear", "wolf", "fox", "rabbit"}
+	domains := []string{"example.com", "test.com", "mock.org", "fakemail.net", "tempmail.co"}
 
-	result := gen.DB.Create(match)
-	if result.Error != nil {
-		return nil, result.Error
-	}
+	adjective := adjectives[g.rand.Intn(len(adjectives))]
+	noun := nouns[g.rand.Intn(len(nouns))]
+	number := g.rand.Intn(1000)
+	domain := domains[g.rand.Intn(len(domains))]
 
-	return match, nil
+	return adjective + noun + string(rune('0'+number/100)) + string(rune('0'+(number/10)%10)) + string(rune('0'+number%10)) + "@" + domain
 }
 
-// CreateTestReview creates a test review
-func (gen *TestDataGenerator) CreateTestReview(matchID, reviewerID, revieweeID uint, score int, comment string) (*models.Review, error) {
-	review := &models.Review{
-		MatchID:     matchID,
-		ReviewerID:  reviewerID,
-		RevieweeID:  revieweeID,
-		Score:       score,
-		Comment:     comment,
-	}
+// GenerateName creates a random name for testing
+func (g *TestDataGenerator) GenerateName() string {
+	firstNames := []string{"James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda", "William", "Elizabeth"}
+	lastNames := []string{"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"}
 
-	result := gen.DB.Create(review)
-	if result.Error != nil {
-		return nil, result.Error
-	}
+	firstName := firstNames[g.rand.Intn(len(firstNames))]
+	lastName := lastNames[g.rand.Intn(len(lastNames))]
 
-	return review, nil
+	return firstName + " " + lastName
 }
 
-// CreateTestMatchParticipant creates a test match participant
-func (gen *TestDataGenerator) CreateTestMatchParticipant(matchID, userID uint, status string) (*models.MatchParticipant, error) {
-	participant := &models.MatchParticipant{
-		MatchID: matchID,
-		UserID:  userID,
-		Status:  status, // pending, approved, rejected
-	}
+// GenerateTitle creates a random title for testing
+func (g *TestDataGenerator) GenerateTitle() string {
+	adjectives := []string{"Amazing", "Fantastic", "Wonderful", "Incredible", "Superb", "Excellent", "Outstanding", "Impressive", "Remarkable", "Phenomenal"}
+	nouns := []string{"Event", "Activity", "Experience", "Opportunity", "Gathering", "Meeting", "Session", "Workshop", "Seminar", "Conference"}
 
-	result := gen.DB.Create(participant)
-	if result.Error != nil {
-		return nil, result.Error
-	}
+	adjective := adjectives[g.rand.Intn(len(adjectives))]
+	noun := nouns[g.rand.Intn(len(nouns))]
 
-	return participant, nil
+	return adjective + " " + noun
 }
 
-// CreateTestReviewLike creates a test review like/dislike
-func (gen *TestDataGenerator) CreateTestReviewLike(reviewID, userID uint, isLike bool) (*models.ReviewLike, error) {
-	like := &models.ReviewLike{
-		ReviewID: reviewID,
-		UserID:   userID,
-		IsLike:   isLike,
+// GenerateDescription creates a random description for testing
+func (g *TestDataGenerator) GenerateDescription() string {
+	sentences := []string{
+		"This is a wonderful opportunity to learn and grow.",
+		"Don't miss this chance to connect with like-minded individuals.",
+		"A perfect event for expanding your knowledge and network.",
+		"An excellent way to spend your time with meaningful activities.",
+		"Join us for an unforgettable experience filled with fun.",
+		"This activity promises to be both educational and entertaining.",
+		"A great opportunity to meet new people and have fun.",
+		"An event designed to bring the community together.",
+		"Experience something new and exciting with this activity.",
+		"A chance to develop new skills in a supportive environment.",
 	}
 
-	result := gen.DB.Create(like)
-	if result.Error != nil {
-		return nil, result.Error
-	}
+	// Generate a description with 2-4 sentences
+	numSentences := 2 + g.rand.Intn(3)
+	description := ""
 
-	return like, nil
-}
-
-// ClearAllTestData removes all test data from the database
-func (gen *TestDataGenerator) ClearAllTestData() error {
-	// Delete in reverse order to respect foreign key constraints
-	tables := []interface{}{
-		&models.ReviewLike{}, &models.Review{}, &models.MatchParticipant{},
-		&models.Match{}, &models.Activity{}, &models.Location{},
-		&models.Admin{}, &models.User{}, &models.RefreshToken{},
-	}
-
-	for _, table := range tables {
-		if err := gen.DB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(table).Error; err != nil {
-			// If table doesn't exist, continue
-			return err
+	for i := 0; i < numSentences; i++ {
+		description += sentences[g.rand.Intn(len(sentences))]
+		if i < numSentences-1 {
+			description += " "
 		}
 	}
 
-	return nil
+	return description
 }
 
-// SetupSampleData creates sample data for testing
-func (gen *TestDataGenerator) SetupSampleData() error {
-	// Create a test admin user
-	admin, err := gen.CreateTestAdmin()
-	if err != nil {
-		return fmt.Errorf("failed to create admin: %w", err)
-	}
-
-	// Create a regular user
-	user, err := gen.CreateTestRegularUser()
-	if err != nil {
-		return fmt.Errorf("failed to create regular user: %w", err)
-	}
-
-	// Create a location
-	location, err := gen.CreateTestLocation("Test Location", "123 Test St", 25.0, 121.0)
-	if err != nil {
-		return fmt.Errorf("failed to create location: %w", err)
-	}
-
-	// Create an activity
-	activity, err := gen.CreateTestActivity("Test Activity", "Sample activity for testing", location.ID, 2)
-	if err != nil {
-		return fmt.Errorf("failed to create activity: %w", err)
-	}
-
-	// Create a match organized by the admin
-	match, err := gen.CreateTestMatch(activity.ID, admin.ID, "2025-12-31T10:00:00Z")
-	if err != nil {
-		return fmt.Errorf("failed to create match: %w", err)
-	}
-
-	// Add the organizer as a participant
-	_, err = gen.CreateTestMatchParticipant(match.ID, admin.ID, "approved")
-	if err != nil {
-		return fmt.Errorf("failed to create organizer participant: %w", err)
-	}
-
-	// Add the regular user as a participant
-	_, err = gen.CreateTestMatchParticipant(match.ID, user.ID, "approved")
-	if err != nil {
-		return fmt.Errorf("failed to create regular user participant: %w", err)
-	}
-
-	// Create a review from regular user to admin (after match completion)
-	_, err = gen.CreateTestReview(match.ID, user.ID, admin.ID, 5, "Great organizer!")
-	if err != nil {
-		return fmt.Errorf("failed to create review: %w", err)
-	}
-
-	return nil
+// GenerateProvider creates a random provider for testing
+func (g *TestDataGenerator) GenerateProvider() string {
+	providers := []string{"facebook", "instagram", "google", "twitter"}
+	return providers[g.rand.Intn(len(providers))]
 }
+
+// GenerateTestUsers creates multiple test users
+func (g *TestDataGenerator) GenerateTestUsers(count int) []TestUser {
+	users := make([]TestUser, count)
+	for i := 0; i < count; i++ {
+		users[i] = g.GenerateUser(uint(i+1), "", "", "")
+	}
+	return users
+}
+
+// GenerateTestActivities creates multiple test activities
+func (g *TestDataGenerator) GenerateTestActivities(count int, creatorID uint) []TestActivity {
+	activities := make([]TestActivity, count)
+	for i := 0; i < count; i++ {
+		activities[i] = g.GenerateActivity(uint(i+1), "", "", uint(i+1), creatorID)
+	}
+	return activities
+}
+
+// Predefined test data for consistent testing
+var (
+	// Standard test user
+	StandardTestUser = TestUser{
+		ID:       999,
+		Email:    "standard@test.com",
+		Name:     "Standard Test User",
+		Provider: "facebook",
+		Role:     "user",
+	}
+
+	// Standard test activity
+	StandardTestActivity = TestActivity{
+		ID:          999,
+		Title:       "Standard Test Activity",
+		Description: "This is a standard test activity for consistent testing.",
+		LocationID:  1,
+		Status:      "pending",
+		CreatorID:   999,
+	}
+)

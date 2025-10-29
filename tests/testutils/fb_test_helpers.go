@@ -126,16 +126,16 @@ func (fath *FacebookAuthTestHelper) CheckFacebookAuthError(resp *http.Response, 
 // PrepareFacebookCallbackURL constructs the callback URL with required parameters
 func (fath *FacebookAuthTestHelper) PrepareFacebookCallbackURL(params map[string]string) string {
 	baseURL := fmt.Sprintf("%s/auth/facebook/callback", fath.BaseURL)
-	
+
 	// Create query string
 	var queryParams []string
 	for key, value := range params {
 		queryParams = append(queryParams, fmt.Sprintf("%s=%s", key, url.QueryEscape(value)))
 	}
-	
+
 	if len(queryParams) > 0 {
 		return baseURL + "?" + strings.Join(queryParams, "&")
 	}
-	
+
 	return baseURL
 }

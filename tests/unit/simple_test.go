@@ -15,7 +15,7 @@ func TestSwaggerEndpoint(t *testing.T) {
 
 	// 創建一個新的Gin路由器
 	r := gin.New()
-	
+
 	// 添加Swagger路由
 	r.GET("/swagger/*any", func(c *gin.Context) {
 		c.String(http.StatusOK, "Swagger UI")
@@ -24,7 +24,7 @@ func TestSwaggerEndpoint(t *testing.T) {
 	// 創建一個HTTP請求
 	req, _ := http.NewRequest("GET", "/swagger/index.html", nil)
 	w := httptest.NewRecorder()
-	
+
 	// 處理請求
 	r.ServeHTTP(w, req)
 

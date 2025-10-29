@@ -49,7 +49,7 @@ func TestFacebookLoginFlow(t *testing.T) {
 		callbackResp, err := http.Get(callbackURL)
 		assert.NoError(t, err)
 		assert.NotNil(t, callbackResp)
-		
+
 		// The callback might return a redirect or JSON response depending on implementation
 		// For now, just verify the endpoint doesn't crash
 		assert.Contains(t, []int{200, 302}, callbackResp.StatusCode)
@@ -58,7 +58,7 @@ func TestFacebookLoginFlow(t *testing.T) {
 
 	t.Run("Facebook login with mock provider returns JWT", func(t *testing.T) {
 		// This test simulates the complete flow using our mock provider
-		
+
 		// Create a test HTTP client to simulate browser requests
 		client := &http.Client{
 			Timeout: 10 * time.Second,
@@ -79,7 +79,7 @@ func TestFacebookLoginFlow(t *testing.T) {
 
 		// In a real implementation, we would capture the state parameter from the redirect
 		// For this test, we'll directly check that the token exchange endpoint works
-		
+
 		// Test token exchange endpoint (this simulates having a session from successful Facebook login)
 		tokenResp, err := client.Get(testServer.GetURL("/auth/token"))
 		assert.NoError(t, err)
@@ -172,7 +172,7 @@ func TestJWTTokenValidationAfterFacebookLogin(t *testing.T) {
 
 		// Test multiple API endpoints with the same token
 		endpoints := []string{"/profile", "/user/matches", "/user/past-matches"}
-		
+
 		client := &http.Client{Timeout: 10 * time.Second}
 
 		for _, endpoint := range endpoints {
@@ -185,11 +185,11 @@ func TestJWTTokenValidationAfterFacebookLogin(t *testing.T) {
 
 			resp, err := client.Do(req)
 			assert.NoError(t, err)
-			
+
 			// The response might be 200 (success) or 404 (endpoint not found) or 400 (bad request)
 			// The important thing is that it's not 401 (unauthorized), which would indicate JWT failure
 			assert.NotEqual(t, http.StatusUnauthorized, resp.StatusCode)
-			
+
 			resp.Body.Close()
 		}
 	})
@@ -256,7 +256,7 @@ func TestFacebookLoginFailureScenarios(t *testing.T) {
 
 	t.Run("Expired Facebook token is rejected", func(t *testing.T) {
 		// Create an expired token
-		expiredToken, err := testutils.CreateMockJWTToken(99999, "Expired User", false) 
+		expiredToken, err := testutils.CreateMockJWTToken(99999, "Expired User", false)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, expiredToken)
 

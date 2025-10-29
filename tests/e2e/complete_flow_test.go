@@ -52,7 +52,7 @@ func TestCompleteFacebookLoginFlow(t *testing.T) {
 
 	// Step 3: Test accessing protected endpoints with JWT
 	t.Log("Step 3: Testing access to protected endpoints with JWT...")
-	
+
 	// Test profile endpoint
 	resp, err := testutils.MakeAuthenticatedRequest(testServer, "GET", "/profile", jwtToken, nil)
 	assert.NoError(t, err)
@@ -92,7 +92,7 @@ func TestCompleteFacebookLoginFlow(t *testing.T) {
 	startTime := time.Now()
 	_, err = testutils.ValidateJWTToken(jwtToken)
 	validationTime := time.Since(startTime)
-	assert.True(t, validationTime < 10*time.Millisecond, 
+	assert.True(t, validationTime < 10*time.Millisecond,
 		fmt.Sprintf("JWT validation should be under 10ms but took %v", validationTime))
 	t.Logf("JWT validation completed in %v", validationTime)
 
@@ -101,7 +101,7 @@ func TestCompleteFacebookLoginFlow(t *testing.T) {
 	resp, err = testutils.MakeAuthenticatedRequest(testServer, "GET", "/profile", jwtToken, nil)
 	apiTime := time.Since(startTime)
 	assert.NoError(t, err)
-	assert.True(t, apiTime < 500*time.Millisecond, 
+	assert.True(t, apiTime < 500*time.Millisecond,
 		fmt.Sprintf("API request should be under 500ms but took %v", apiTime))
 	resp.Body.Close()
 	t.Logf("API request completed in %v", apiTime)

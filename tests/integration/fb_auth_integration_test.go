@@ -30,10 +30,10 @@ func TestFacebookAuthFlowIntegration(t *testing.T) {
 		// 2. Simulating the redirect to Facebook
 		// 3. Simulating the callback to /auth/facebook/callback
 		// 4. Validating the returned JWT token
-		
+
 		// Since we can't fully simulate OAuth in integration tests without real Facebook credentials,
 		// we'll validate the components that make up the flow
-		
+
 		// Test that auth endpoints exist
 		resp, err := testServer.DoRequest("GET", "/auth/facebook", nil, nil)
 		assert.NoError(t, err)

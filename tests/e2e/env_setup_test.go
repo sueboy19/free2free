@@ -15,7 +15,7 @@ func TestEnvironmentSetupValidation(t *testing.T) {
 		// Check that required environment variables are available
 		envVars := []string{
 			"TEST_DB_HOST",
-			"TEST_DB_PORT", 
+			"TEST_DB_PORT",
 			"TEST_DB_USER",
 			"TEST_DB_PASSWORD",
 			"TEST_DB_NAME",

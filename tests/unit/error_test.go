@@ -43,10 +43,10 @@ func TestSendError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			_, router := gin.CreateTestContext(w)
-			
+
 			// Add the error handling middleware
 			router.Use(middleware.ErrorHandler())
-			
+
 			// Create a simple handler that adds an error
 			router.GET("/test", func(c *gin.Context) {
 				c.Error(errors.NewAppError(tt.code, tt.message))

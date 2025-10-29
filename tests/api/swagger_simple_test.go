@@ -28,7 +28,7 @@ func TestSwaggerEndpoints(t *testing.T) {
 	}
 
 	fmt.Printf("✓ 驗證了 %d 個Swagger端點\n", len(endpoints))
-	
+
 	// 測試API標籤
 	tags := []string{
 		"認證",
@@ -38,7 +38,7 @@ func TestSwaggerEndpoints(t *testing.T) {
 		"評分",
 		"評論",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個API標籤\n", len(tags))
 
 	// 測試數據模型
@@ -51,7 +51,7 @@ func TestSwaggerEndpoints(t *testing.T) {
 		"Review",
 		"ReviewLike",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個數據模型\n", len(models))
 
 	fmt.Println("Swagger端點測試完成！")
@@ -74,7 +74,7 @@ func TestAPIResponses(t *testing.T) {
 		"application/json",
 		"text/html",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個響應類型\n", len(responseTypes))
 
 	fmt.Println("API響應格式測試完成！")
@@ -94,7 +94,7 @@ func TestAuthenticationFlow(t *testing.T) {
 		"/auth/:provider/callback",
 		"/logout",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個認證端點\n", len(authEndpoints))
 
 	fmt.Println("認證流程測試完成！")
@@ -110,7 +110,7 @@ func TestUserRolePermissions(t *testing.T) {
 		"使用者",
 		"開局者",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個用戶角色\n", len(roles))
 
 	// 測試各角色的權限
@@ -119,12 +119,12 @@ func TestUserRolePermissions(t *testing.T) {
 		"使用者": {"查看活動", "參加活動", "創建活動", "評分其他用戶"},
 		"開局者": {"審核參與者", "管理自己的活動"},
 	}
-	
+
 	permissionCount := 0
 	for _, perms := range permissions {
 		permissionCount += len(perms)
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個權限設置\n", permissionCount)
 
 	fmt.Println("用戶角色權限測試完成！")
@@ -161,12 +161,12 @@ func TestDataModels(t *testing.T) {
 			"id", "review_id", "user_id", "is_like",
 		},
 	}
-	
+
 	fieldCount := 0
 	for _, fields := range models {
 		fieldCount += len(fields)
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個數據模型字段\n", fieldCount)
 
 	fmt.Println("數據模型測試完成！")
@@ -180,21 +180,21 @@ func TestAPIDocumentationStructure(t *testing.T) {
 	infoFields := []string{
 		"title", "description", "version", "host", "basePath",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個文檔基本信息字段\n", len(infoFields))
 
 	// 測試安全方案
 	securitySchemes := []string{
 		"ApiKeyAuth",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個安全方案\n", len(securitySchemes))
 
 	// 測試媒體類型
 	contentTypes := []string{
 		"application/json",
 	}
-	
+
 	fmt.Printf("✓ 驗證了 %d 個媒體類型\n", len(contentTypes))
 
 	fmt.Println("API文檔結構測試完成！")

@@ -195,7 +195,7 @@ func initTestDB() error {
 func testSessionsMiddleware() gin.HandlerFunc {
 	// Create a real session store for testing
 	store := sessions.NewCookieStore([]byte("test-secret-for-session-testing-32-bytes"))
-	
+
 	return func(c *gin.Context) {
 		// Create a new session using the real sessions package
 		session, err := store.Get(c.Request, "free2free-session")
@@ -212,7 +212,7 @@ func testSessionsMiddleware() gin.HandlerFunc {
 				},
 			}
 		}
-		
+
 		// Set the session in the context so handlers can access it
 		c.Set("session", session)
 		c.Next()

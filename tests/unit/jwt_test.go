@@ -26,12 +26,12 @@ func mockGenerateTokens(user *models.User) (string, string, error) {
 	if jwtSecret == "" {
 		jwtSecret = "test-secret-key-32-chars-long-enough!!" // default for tests
 	}
-	
+
 	// Validate secret length (same validation as in real function)
 	if len(jwtSecret) < 32 {
 		return "", "", fmt.Errorf("JWT_SECRET 長度不足 32 byte")
 	}
-	
+
 	// Create access token
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, MockClaims{
 		UserID:   user.ID,
@@ -42,12 +42,12 @@ func mockGenerateTokens(user *models.User) (string, string, error) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	})
-	
+
 	accessTokenString, err := accessToken.SignedString([]byte(jwtSecret))
 	if err != nil {
 		return "", "", err
 	}
-	
+
 	// For simplicity in tests, we're not generating refresh tokens
 	return accessTokenString, "", nil
 }
@@ -55,19 +55,19 @@ func mockGenerateTokens(user *models.User) (string, string, error) {
 // mockValidateJWTToken validates JWT tokens for testing
 func mockValidateJWTToken(tokenString string) (*MockClaims, error) {
 	jwtSecret := "test-secret-key-32-chars-long-enough!!"
-	
+
 	token, err := jwt.ParseWithClaims(tokenString, &MockClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if claims, ok := token.Claims.(*MockClaims); ok && token.Valid {
 		return claims, nil
 	}
-	
+
 	return nil, nil
 }
 

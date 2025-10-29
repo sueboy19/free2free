@@ -115,7 +115,7 @@ func TestFacebookLoginPerformance(t *testing.T) {
 			start := time.Now()
 
 			testServer := testutils.NewTestServer()
-			
+
 			// Create user and JWT token
 			user, err := testServer.CreateTestUser()
 			assert.NoError(t, err)

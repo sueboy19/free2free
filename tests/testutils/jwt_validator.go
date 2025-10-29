@@ -2,130 +2,161 @@ package testutils
 
 import (
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTClaims represents the claims in a JWT token
-type JWTClaims struct {
-	UserID   int64  `json:"user_id"`
-	UserName string `json:"user_name"`
-	IsAdmin  bool   `json:"is_admin"`
-	jwt.RegisteredClaims
-}
-
-// ValidateJWTToken validates a JWT token and returns the claims
-func ValidateJWTToken(tokenString string) (*JWTClaims, error) {
-	// Remove "Bearer " prefix if present
-	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-
-	// Get JWT secret from config or environment
-	jwtSecret := os.Getenv("TEST_JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "test-jwt-secret-key-32-chars-long-enough!!"
+// CreateValidToken creates a valid JWT token for testing purposes
+func CreateValidToken(userID uint, email, role string, secret string) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"role":    role,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(), // Token valid for 24 hours
+		"iat":     time.Now().Unix(),                     // Issued at time
 	}
 
-	// Parse and validate the token
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate the signing method
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(jwtSecret), nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("error parsing token: %w", err)
-	}
-
-	// Validate the token itself
-	if !token.Valid {
-		return nil, fmt.Errorf("invalid token")
-	}
-
-	// Extract and return the claims
-	claims, ok := token.Claims.(*JWTClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid token claims")
-	}
-
-	return claims, nil
-}
-
-// CreateMockJWTToken creates a mock JWT token for testing
-func CreateMockJWTToken(userID int64, userName string, isAdmin bool) (string, error) {
-	// Get JWT secret from config or environment
-	jwtSecret := os.Getenv("TEST_JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "test-jwt-secret-key-32-chars-long-enough!!"
-	}
-
-	// Create the claims
-	claims := &JWTClaims{
-		UserID:   userID,
-		UserName: userName,
-		IsAdmin:  isAdmin,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "free2free-test",
-			Subject:   fmt.Sprintf("user:%d", userID),
-		},
-	}
-
-	// Create the token with the claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// Sign the token with the secret
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
-		return "", fmt.Errorf("error signing token: %w", err)
+		return "", err
 	}
 
 	return tokenString, nil
 }
 
-// IsTokenExpired checks if a token is expired
-func IsTokenExpired(tokenString string) (bool, error) {
-	claims, err := ValidateJWTToken(tokenString)
-	if err != nil {
-		return true, err
+// CreateExpiredToken creates an expired JWT token for testing purposes
+func CreateExpiredToken(userID uint, email, role string, secret string) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"role":    role,
+		"exp":     time.Now().Add(-time.Hour).Unix(),     // Token expired 1 hour ago
+		"iat":     time.Now().Add(-time.Hour * 2).Unix(), // Issued 2 hours ago
 	}
 
-	// Check if the token is expired
-	return time.Now().After(claims.ExpiresAt.Time), nil
-}
-
-// GetUserIDFromToken extracts the user ID from a JWT token
-func GetUserIDFromToken(tokenString string) (int64, error) {
-	claims, err := ValidateJWTToken(tokenString)
-	if err != nil {
-		return 0, err
-	}
-
-	return claims.UserID, nil
-}
-
-// GetUserNameFromToken extracts the user name from a JWT token
-func GetUserNameFromToken(tokenString string) (string, error) {
-	claims, err := ValidateJWTToken(tokenString)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
 		return "", err
 	}
 
-	return claims.UserName, nil
+	return tokenString, nil
 }
 
-// IsUserAdminFromToken checks if the user is an admin based on the token
-func IsUserAdminFromToken(tokenString string) (bool, error) {
-	claims, err := ValidateJWTToken(tokenString)
+// ValidateToken validates a JWT token and returns the claims
+func ValidateToken(tokenString string, secret string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate the signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return claims.IsAdmin, nil
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
+}
+
+// ValidateAndExtractClaims parses and validates a JWT token, extracting common claims
+func ValidateAndExtractClaims(tokenString, secret string) (userID uint, email, role string, err error) {
+	claims, err := ValidateToken(tokenString, secret)
+	if err != nil {
+		return 0, "", "", err
+	}
+
+	// Extract user ID
+	if idFloat, ok := claims["user_id"].(float64); ok {
+		userID = uint(idFloat)
+	} else {
+		return 0, "", "", fmt.Errorf("user_id not found in token")
+	}
+
+	// Extract email
+	if emailStr, ok := claims["email"].(string); ok {
+		email = emailStr
+	} else {
+		return 0, "", "", fmt.Errorf("email not found in token")
+	}
+
+	// Extract role
+	if roleStr, ok := claims["role"].(string); ok {
+		role = roleStr
+	} else {
+		return 0, "", "", fmt.Errorf("role not found in token")
+	}
+
+	return userID, email, role, nil
+}
+
+// ValidateTokenAndCheckRole validates a JWT token and checks user role
+func ValidateTokenAndCheckRole(tokenString, secret, requiredRole string) (uint, error) {
+	claims, err := ValidateToken(tokenString, secret)
+	if err != nil {
+		return 0, err
+	}
+
+	// Extract role
+	if role, ok := claims["role"].(string); ok {
+		if role != requiredRole {
+			return 0, fmt.Errorf("insufficient permissions: required %s, got %s", requiredRole, role)
+		}
+	} else {
+		return 0, fmt.Errorf("role not found in token")
+	}
+
+	// Extract user ID
+	if idFloat, ok := claims["user_id"].(float64); ok {
+		return uint(idFloat), nil
+	}
+
+	return 0, fmt.Errorf("user_id not found in token")
+}
+
+// MockJWTValidator provides a mock implementation for testing
+type MockJWTValidator struct {
+	ValidTokens   map[string]bool
+	InvalidTokens map[string]bool
+	TokenUserMap  map[string]uint
+}
+
+// NewMockJWTValidator creates a new mock JWT validator
+func NewMockJWTValidator() *MockJWTValidator {
+	return &MockJWTValidator{
+		ValidTokens:   make(map[string]bool),
+		InvalidTokens: make(map[string]bool),
+		TokenUserMap:  make(map[string]uint),
+	}
+}
+
+// ValidateToken checks if the token is valid in the mock
+func (m *MockJWTValidator) ValidateToken(tokenString string) (uint, error) {
+	if m.InvalidTokens[tokenString] {
+		return 0, fmt.Errorf("invalid token")
+	}
+
+	if userID, exists := m.TokenUserMap[tokenString]; exists {
+		return userID, nil
+	}
+
+	return 0, fmt.Errorf("token not found")
+}
+
+// AddValidToken adds a valid token to the mock
+func (m *MockJWTValidator) AddValidToken(token string, userID uint) {
+	m.ValidTokens[token] = true
+	m.TokenUserMap[token] = userID
+}
+
+// AddInvalidToken adds an invalid token to the mock
+func (m *MockJWTValidator) AddInvalidToken(token string) {
+	m.InvalidTokens[token] = true
 }

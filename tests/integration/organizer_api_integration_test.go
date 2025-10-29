@@ -215,7 +215,7 @@ func TestOrganizerActionsOnMatches(t *testing.T) {
 	// In a real scenario, we would create a match where organizerUser is the organizer
 	// For this test, we'll just verify that the endpoints accept valid JWTs
 	t.Run("Approve/Reject endpoints accept JWTs", func(t *testing.T) {
-		// These tests will likely return 404 (not found) or 403 (forbidden) 
+		// These tests will likely return 404 (not found) or 403 (forbidden)
 		// because the match/participant doesn't exist or user isn't the organizer
 		approveResp, err := testutils.MakeAuthenticatedRequest(testServer, "PUT", "/organizer/matches/1/participants/1/approve", organizerToken, nil)
 		assert.NoError(t, err)

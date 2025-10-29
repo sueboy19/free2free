@@ -35,7 +35,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 
 		// 創建路由器
 		r := gin.New()
-		
+
 		// 添加Swagger路由（模擬實際的Swagger路由）
 		r.GET("/swagger/*any", func(c *gin.Context) {
 			// 模擬Swagger UI的響應
@@ -45,7 +45,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 		// 創建請求
 		req, _ := http.NewRequest("GET", "/swagger/index.html", nil)
 		w := httptest.NewRecorder()
-		
+
 		// 處理請求
 		r.ServeHTTP(w, req)
 
@@ -69,35 +69,35 @@ func TestSwaggerDocumentation(t *testing.T) {
 	t.Run("APIEndpointsInDocumentation", func(t *testing.T) {
 		// 檢查文檔是否包含必要的端點
 		swaggerDoc := docs.SwaggerInfo.SwaggerTemplate
-		
+
 		// 認證相關端點
 		assert.Contains(t, swaggerDoc, "/auth/{provider}")
 		assert.Contains(t, swaggerDoc, "/auth/{provider}/callback")
 		assert.Contains(t, swaggerDoc, "/logout")
 		assert.Contains(t, swaggerDoc, "/profile")
-		
+
 		// 管理員相關端點
 		assert.Contains(t, swaggerDoc, "/admin/activities")
 		assert.Contains(t, swaggerDoc, "/admin/locations")
 		assert.Contains(t, swaggerDoc, "/admin/activities/{id}")
 		assert.Contains(t, swaggerDoc, "/admin/locations/{id}")
-		
+
 		// 使用者相關端點
 		assert.Contains(t, swaggerDoc, "/user/matches")
 		assert.Contains(t, swaggerDoc, "/user/past-matches")
 		assert.Contains(t, swaggerDoc, "/user/matches/{id}/join")
-		
+
 		// 開局者相關端點
 		assert.Contains(t, swaggerDoc, "/organizer/matches/{id}/participants/{participant_id}/approve")
 		assert.Contains(t, swaggerDoc, "/organizer/matches/{id}/participants/{participant_id}/reject")
-		
+
 		// 評分相關端點
 		assert.Contains(t, swaggerDoc, "/review/matches/{id}")
-		
+
 		// 評論點讚/倒讚相關端點
 		assert.Contains(t, swaggerDoc, "/review-like/reviews/{id}/like")
 		assert.Contains(t, swaggerDoc, "/review-like/reviews/{id}/dislike")
-		
+
 		fmt.Println("✓ 所有API端點在文檔中定義測試通過")
 	})
 
@@ -105,7 +105,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 	t.Run("DataModelsInDocumentation", func(t *testing.T) {
 		// 檢查文檔是否包含必要的數據模型
 		swaggerDoc := docs.SwaggerInfo.SwaggerTemplate
-		
+
 		// 數據模型
 		assert.Contains(t, swaggerDoc, "main.User")
 		assert.Contains(t, swaggerDoc, "main.Activity")
@@ -114,7 +114,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 		assert.Contains(t, swaggerDoc, "main.MatchParticipant")
 		assert.Contains(t, swaggerDoc, "main.Review")
 		assert.Contains(t, swaggerDoc, "main.ReviewLike")
-		
+
 		fmt.Println("✓ 所有數據模型在文檔中定義測試通過")
 	})
 
@@ -122,7 +122,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 	t.Run("APITags", func(t *testing.T) {
 		// 檢查文檔是否包含正確的標籤
 		swaggerDoc := docs.SwaggerInfo.SwaggerTemplate
-		
+
 		// API標籤
 		assert.Contains(t, swaggerDoc, "\"認證\"")
 		assert.Contains(t, swaggerDoc, "\"管理員\"")
@@ -130,7 +130,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 		assert.Contains(t, swaggerDoc, "\"開局者\"")
 		assert.Contains(t, swaggerDoc, "\"評分\"")
 		assert.Contains(t, swaggerDoc, "\"評論\"")
-		
+
 		fmt.Println("✓ API標籤分類測試通過")
 	})
 
@@ -148,12 +148,12 @@ func TestRealSwaggerEndpoint(t *testing.T) {
 
 	// 檢查文件是否包含必要的內容
 	swaggerContent := string(swaggerJSON)
-	
+
 	assert.Contains(t, swaggerContent, "\"swagger\": \"2.0\"")
 	assert.Contains(t, swaggerContent, "\"title\": \"買一送一配對網站 API\"")
 	assert.Contains(t, swaggerContent, "paths")
 	assert.Contains(t, swaggerContent, "definitions")
-	
+
 	// 檢查是否包含所有主要端點
 	endpoints := []string{
 		"/auth/{provider}",
@@ -165,13 +165,13 @@ func TestRealSwaggerEndpoint(t *testing.T) {
 		"/user/matches",
 		"/review/matches/{id}",
 	}
-	
+
 	for _, endpoint := range endpoints {
 		// 在JSON中路徑會被轉義，所以我們需要檢查轉義後的版本
 		escapedEndpoint := strings.ReplaceAll(endpoint, "{", "\\{")
 		escapedEndpoint = strings.ReplaceAll(escapedEndpoint, "}", "\\}")
 		assert.Contains(t, swaggerContent, escapedEndpoint, "端點 %s 應該在Swagger文檔中定義", endpoint)
 	}
-	
+
 	fmt.Println("✓ 真實Swagger端點測試通過")
 }

@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// Use modernc.org/sqlite as the underlying driver (no CGO required)
+import _ "modernc.org/sqlite"
+
 // Simple test models for GORM CRUD operations
 type TestUser struct {
 	ID   int64  `gorm:"primaryKey"`

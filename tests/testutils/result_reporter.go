@@ -104,7 +104,7 @@ func (rr *ResultReporter) WriteJSONReport() error {
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	
+
 	if err := encoder.Encode(suiteResult); err != nil {
 		return fmt.Errorf("failed to encode report to JSON: %w", err)
 	}
@@ -157,7 +157,7 @@ func (rr *ResultReporter) PrintSummary() {
 
 	fmt.Printf("\n=== Test Suite Summary ===\n")
 	fmt.Printf("Suite: %s\n", suiteResult.Name)
-	fmt.Printf("Total: %d | Passed: %d | Failed: %d | Skipped: %d\n", 
+	fmt.Printf("Total: %d | Passed: %d | Failed: %d | Skipped: %d\n",
 		suiteResult.Total, suiteResult.Passed, suiteResult.Failed, suiteResult.Skipped)
 	fmt.Printf("Duration: %s\n", suiteResult.Duration)
 	fmt.Printf("========================\n\n")

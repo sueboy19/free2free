@@ -2,3 +2,50 @@
 *.exe
 bin/*
 tmp/*
+# Go binaries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go build/cache folders
+vendor/
+coverage.out
+profile.out
+go.exe
+go.pprof
+
+# Go environment
+.envrc
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Docker
+Dockerfile*
+.dockerignore
+*.log*
+docker-compose*.yml
+.DS_Store
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.min.js
+*.min.css
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

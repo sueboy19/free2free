@@ -17,10 +17,10 @@ type TestTimeoutConfig struct {
 // GetDefaultTestTimeoutConfig returns default timeout configuration
 func GetDefaultTestTimeoutConfig() TestTimeoutConfig {
 	return TestTimeoutConfig{
-		OverallTimeout: 300 * time.Second,  // 5 minutes for overall test suite
-		RequestTimeout: 30 * time.Second,   // 30 seconds for API requests
-		DBTimeout:      10 * time.Second,   // 10 seconds for DB operations
-		JWTTimeout:     5 * time.Second,    // 5 seconds for JWT operations
+		OverallTimeout: 300 * time.Second, // 5 minutes for overall test suite
+		RequestTimeout: 30 * time.Second,  // 30 seconds for API requests
+		DBTimeout:      10 * time.Second,  // 10 seconds for DB operations
+		JWTTimeout:     5 * time.Second,   // 5 seconds for JWT operations
 	}
 }
 
@@ -35,7 +35,7 @@ type TestContext struct {
 func NewTestContext() *TestContext {
 	config := GetDefaultTestTimeoutConfig()
 	ctx, cancel := context.WithTimeout(context.Background(), config.OverallTimeout)
-	
+
 	return &TestContext{
 		Ctx:    ctx,
 		Cancel: cancel,
@@ -86,13 +86,13 @@ func (tc *TestCleanup) AddCleanupFunc(cleanupFunc func()) {
 // Execute executes all cleanup functions
 func (tc *TestCleanup) Execute() []error {
 	var errors []error
-	
+
 	for i := len(tc.cleanupFuncs) - 1; i >= 0; i-- {
 		if err := tc.cleanupFuncs[i](); err != nil {
 			errors = append(errors, fmt.Errorf("cleanup function %d failed: %w", len(tc.cleanupFuncs)-i, err))
 		}
 	}
-	
+
 	return errors
 }
 
@@ -102,7 +102,7 @@ func TestWithTimeout(timeout time.Duration, testFunc func() error) error {
 	defer cancel()
 
 	resultChan := make(chan error, 1)
-	
+
 	go func() {
 		resultChan <- testFunc()
 	}()
@@ -121,7 +121,7 @@ func TestOperationWithTimeout(operationName string, timeout time.Duration, opera
 	defer cancel()
 
 	resultChan := make(chan error, 1)
-	
+
 	go func() {
 		resultChan <- operation()
 	}()
@@ -180,24 +180,24 @@ func TestDeadline(ctx context.Context) error {
 func RunTestsWithCleanup(cleanup *TestCleanup, testFunc func() error) error {
 	// Run the test function
 	err := testFunc()
-	
+
 	// Execute cleanup regardless of test result
 	cleanupErrors := cleanup.Execute()
-	
+
 	// Report any cleanup errors
 	for _, cleanupErr := range cleanupErrors {
 		fmt.Printf("Cleanup error: %v\n", cleanupErr)
 	}
-	
+
 	// Return the original test error if there was one
 	if err != nil {
 		return err
 	}
-	
+
 	// If cleanup had errors but test passed, return cleanup errors
 	if len(cleanupErrors) > 0 {
 		return fmt.Errorf("test completed with %d cleanup error(s)", len(cleanupErrors))
 	}
-	
+
 	return nil
 }

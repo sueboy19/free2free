@@ -179,23 +179,23 @@ func TestProtectedEndpointsResponseStructure(t *testing.T) {
 func TestProtectedEndpointsHTTPMethods(t *testing.T) {
 	endpointMethods := map[string]string{
 		// User endpoints
-		"/user/matches":         "GET/POST",
+		"/user/matches":           "GET/POST",
 		"/user/matches/{id}/join": "POST",
-		"/user/past-matches":    "GET",
-		
+		"/user/past-matches":      "GET",
+
 		// Admin endpoints
-		"/admin/activities":           "GET/POST",
-		"/admin/activities/{id}":      "PUT/DELETE",
-		"/admin/locations":            "GET/POST", 
-		"/admin/locations/{id}":       "PUT/DELETE",
-		
+		"/admin/activities":      "GET/POST",
+		"/admin/activities/{id}": "PUT/DELETE",
+		"/admin/locations":       "GET/POST",
+		"/admin/locations/{id}":  "PUT/DELETE",
+
 		// Organizer endpoints
-		"/organizer/matches/{id}/participants/{participant_id}/approve":  "PUT",
-		"/organizer/matches/{id}/participants/{participant_id}/reject":   "PUT",
-		
+		"/organizer/matches/{id}/participants/{participant_id}/approve": "PUT",
+		"/organizer/matches/{id}/participants/{participant_id}/reject":  "PUT",
+
 		// Review endpoints
 		"/review/matches/{id}": "POST",
-		
+
 		// Review-like endpoints
 		"/review-like/reviews/{id}/like":    "POST",
 		"/review-like/reviews/{id}/dislike": "POST",
@@ -216,11 +216,11 @@ func TestProtectedEndpointsAuthRequirements(t *testing.T) {
 		"/user/matches/{id}/join", // POST
 		"/user/past-matches",
 		"/admin/activities",
-		"/admin/activities/{id}",  // PUT
-		"/admin/activities/{id}",  // DELETE
-		"/admin/locations", 
-		"/admin/locations/{id}",   // PUT
-		"/admin/locations/{id}",   // DELETE
+		"/admin/activities/{id}", // PUT
+		"/admin/activities/{id}", // DELETE
+		"/admin/locations",
+		"/admin/locations/{id}", // PUT
+		"/admin/locations/{id}", // DELETE
 		"/organizer/matches/{id}/participants/{participant_id}/approve",
 		"/organizer/matches/{id}/participants/{participant_id}/reject",
 		"/review/matches/{id}",

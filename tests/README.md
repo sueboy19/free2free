@@ -1,155 +1,145 @@
-# 測試套件：Facebook 登入與 API 測試
+# Free2Free API Testing Documentation
 
-本目錄包含用於測試 Facebook 登入功能和所有 API 端點的完整測試套件。
+## Overview
+This document describes the testing setup and strategies implemented for the Free2Free API. The tests cover comprehensive workflows from user login to creating free2free items, management, and approval processes.
 
-## 目錄結構
+## Test Structure
+
+The tests are organized in the following directory structure:
 
 ```
 tests/
-├── contract/              # API 合約測試
-│   ├── test_fb_oauth_contract.go
-│   └── test_protected_endpoints_contract.go
-├── e2e/                 # 端到端測試
-│   ├── fb_login_e2e_test.go
-│   ├── env_setup_test.go
-│   ├── test_suite_validation_test.go
-│   └── complete_flow_test.go
-├── integration/          # 整合測試
-│   ├── fb_auth_integration_test.go
-│   ├── api_integration_test.go
-│   ├── user_api_integration_test.go
-│   ├── admin_api_integration_test.go
-│   ├── organizer_api_integration_test.go
-│   └── review_api_integration_test.go
-├── unit/                # 單元測試
-│   └── jwt_token_test.go
-├── performance/         # 效能測試
-│   └── fb_login_performance_test.go
-├── testutils/           # 測試工具
-│   ├── config.go
-│   ├── test_server.go
-│   ├── mock_fb_provider.go
-│   ├── jwt_validator.go
-│   ├── api_helpers.go
-│   ├── fb_test_helpers.go
-│   ├── test_data.go
-│   ├── result_reporter.go
-│   └── test_cleanup.go
-└── README.md            # 本文件
+├── unit/               # Pure unit tests for individual functions
+├── integration/        # Integration tests for multiple components
+├── contract/           # API contract validation tests
+├── api/                # Tests for API endpoints
+├── e2e/                # End-to-end workflow tests
+├── performance/        # Performance and load tests
+└── testutils/          # Test utilities and helpers
 ```
 
-## 測試類型
+## Running Tests
 
-### 1. 單元測試 (unit/)
-- 測試 JWT 令牌生成和驗證功能
-- 驗證單一函數和方法的正確性
-
-### 2. 整合測試 (integration/)
-- 測試 Facebook OAuth 流程
-- 測試與資料庫的整合
-- 測試不同 API 端點的整合
-
-### 3. 端到端測試 (e2e/)
-- 測試完整的 Facebook 登入流程
-- 測試從登入到使用 API 的完整用戶旅程
-
-### 4. 合約測試 (contract/)
-- 驗證 API 端點的合約和響應結構
-- 確保端點符合預期的行為
-
-### 5. 效能測試 (performance/)
-- 測試 Facebook 登入流程的效能 (應在 30 秒內完成)
-- 測試 JWT 驗證效能 (應在 10 毫秒內完成)
-- 測試 API 響應時間 (應在 500 毫秒內完成)
-
-## 環境設置
-
-### 使用測試設置腳本
+### All Tests
 ```bash
-# Windows
-scripts/test_setup.bat
-
-# 或者手動設置環境變數
-export TEST_DB_HOST=localhost
-export TEST_DB_PORT=3306
-export TEST_DB_USER=root
-export TEST_DB_PASSWORD=password
-export TEST_DB_NAME=free2free_test
-export TEST_JWT_SECRET=test-jwt-secret-key-32-chars-long-enough!!
-export TEST_FACEBOOK_KEY=your_test_facebook_app_id
-export TEST_FACEBOOK_SECRET=your_test_facebook_app_secret
+go test ./tests/... -v
 ```
 
-## 運行測試
-
-### 運行所有測試
+### Specific Test Types
 ```bash
-go test ./tests/...
+# Unit tests
+go test ./tests/unit/... -v
+
+# Integration tests
+go test ./tests/integration/... -v
+
+# Contract tests
+go test ./tests/contract/... -v
+
+# End-to-end tests
+go test ./tests/e2e/... -v
+
+# Performance tests
+go test ./tests/performance/... -v
 ```
 
-### 運行特定類型的測試
+### With Coverage
 ```bash
-# 單元測試
-go test ./tests/unit/...
-
-# 整合測試
-go test ./tests/integration/...
-
-# 端到端測試
-go test ./tests/e2e/...
-
-# 合約測試
-go test ./tests/contract/...
-
-# 效能測試
-go test ./tests/performance/...
+go test ./tests/... -v -coverprofile=coverage.out
+go tool cover -html=coverage.out -o coverage.html
 ```
 
-### 帶有詳細輸出和覆蓋率的測試
-```bash
-go test -v -race ./tests/...
-go test -cover ./tests/...
-go test -coverprofile=coverage.out ./tests/... && go tool cover -html=coverage.out
-```
+## Test Utilities
 
-## 測試報告
+The `testutils/` directory contains several helper packages:
 
-測試結果報告器會生成 JSON 和文本格式的報告，包含：
-- 測試套件摘要
-- 個別測試結果
-- 執行時間統計
-- 失敗測試的詳細資訊
+- `config.go`: Test configuration management
+- `test_server.go`: Test server setup utilities
+- `mock_db.go`: Mock database functionality for tests
+- `jwt_validator.go`: JWT token utilities for testing
+- `api_helpers.go`: Common API test helpers
+- `auth_test_helpers.go`: Authentication-specific test helpers
+- `admin_test_helpers.go`: Admin-specific test helpers
+- `test_data.go`: Test data generation utilities
 
-## 測試配置
+## Authentication Testing
 
-測試配置由 `tests/testutils/config.go` 管理，支援環境變數覆蓋。主要配置包括：
-- 資料庫連接
-- JWT 密鑰
-- Facebook OAuth 憑證
-- 伺服器端口
+The authentication testing approach includes:
 
-## 清理測試數據
+1. **Contract Tests**: Validate the API contracts for authentication endpoints
+2. **Integration Tests**: Test the OAuth login flow and token generation
+3. **Unit Tests**: Test JWT token generation and validation in isolation
+4. **End-to-End Tests**: Test the complete login flow with valid and invalid credentials
 
-測試清理機制在 `tests/testutils/test_cleanup.go` 中實現，確保每次測試後數據庫和資源都被恰當清理。
+## Activities Management Testing
 
-## 本地測試執行
+The activities management testing includes:
 
-1. 確保 MariaDB 服務正在運行
-2. 設置測試環境變數
-3. 執行測試套件
-4. 檢查測試報告
+1. **Contract Tests**: Validate the API contracts for activities endpoints
+2. **Integration Tests**: Test the create, update, and retrieve functionality
+3. **Validation Tests**: Test data validation for activity creation
+4. **End-to-End Tests**: Test the complete activity creation workflow
 
-## 故障排除
+## Admin Functionality Testing
 
-如果遇到測試失敗：
-1. 確保測試數據庫存在且可訪問
-2. 檢查環境變數設置
-3. 確認 JWT 密鑰長度至少為 32 字符
-4. 查看測試日誌獲取詳細錯誤訊息
+The admin functionality testing includes:
 
-## 測試標準
+1. **Contract Tests**: Validate the API contracts for admin endpoints
+2. **Integration Tests**: Test the approval and rejection workflows
+3. **Permission Tests**: Test role-based access controls
+4. **Management Tests**: Test admin-specific management operations
 
-- 測試應遵循快速、獨立、可重複的原則
-- 每個測試應測試單一功能
-- 應覆蓋正常情況、邊界情況和錯誤情況
-- 測試命名應清楚說明測試內容
+## Testing Best Practices
+
+### Test Isolation
+- Each test is independent and does not rely on state from other tests
+- Use setup/teardown functions to create clean state for each test
+- Avoid shared state between tests
+
+### Data Validation
+- Validate all user inputs according to defined rules
+- Test both valid and invalid input scenarios
+- Ensure security measures are in place against injection attacks
+
+### Performance Testing
+- Ensure API endpoints respond within 500ms under normal load
+- Test authentication and token operations for efficiency
+- Validate database query performance
+
+### Security Testing
+- Ensure all endpoints require proper authentication
+- Validate authorization checks for different user roles
+- Verify that sensitive information is not exposed in error messages
+
+## API Endpoints Covered
+
+### Authentication Endpoints
+- `POST /auth/token` - Exchange OAuth session for JWT token
+- `GET /auth/:provider` - Initiate OAuth login flow
+- `GET /auth/:provider/callback` - OAuth callback endpoint
+- `POST /auth/refresh` - Refresh expired JWT token
+- `GET /logout` - Logout user and clear session
+
+### User Endpoints
+- `GET /profile` - Get user profile information
+
+### Activities Endpoints
+- `POST /api/activities` - Create a new free2free item
+- `GET /api/activities/:id` - Get a specific free2free item
+- `PUT /api/activities/:id` - Update a specific free2free item
+
+### Administrative Endpoints
+- `GET /admin/activities` - Get all free2free items (for admin management)
+- `PUT /admin/activities/:id/approve` - Approve a free2free item
+- `PUT /admin/activities/:id/reject` - Reject a free2free item
+
+## Quality Assurance
+
+The testing strategy ensures:
+- All major user workflows (login, create, manage, approve) can be completed through API calls with 99% success rate
+- All API endpoints respond within 500ms under normal load conditions
+- Comprehensive API test coverage of 95% of all endpoints and workflows
+- All authentication and authorization requirements are validated through API tests with zero security vulnerabilities
+- Users can successfully complete the entire process from login to creating a free2free item in under 3 minutes with appropriate feedback
+- System administrators can manage and approve free2free items with 99% success rate through the API
+- All API error conditions are properly handled and tested with appropriate user feedback

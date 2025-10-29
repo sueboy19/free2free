@@ -40,7 +40,7 @@ func TestSecurityValidationForJWT(t *testing.T) {
 		if len(parts) == 3 {
 			// Create a token with a modified signature
 			tamperedToken := parts[0] + "." + parts[1] + ".InvalidSignature"
-			
+
 			// This should fail validation
 			_, err = testutils.ValidateJWTToken(tamperedToken)
 			assert.Error(t, err, "Tampered token should not validate successfully")
@@ -99,7 +99,7 @@ func TestSecurityValidationForJWT(t *testing.T) {
 		// by using an invalid token and checking the error response
 		resp, err := testutils.MakeAuthenticatedRequest(testServer, "GET", "/profile", "invalid.token.here", nil)
 		assert.NoError(t, err)
-		
+
 		// Check that the error response doesn't reveal sensitive server information
 		// This is difficult to test programmatically without examining the response body,
 		// but we can ensure the request doesn't crash the server
@@ -293,7 +293,7 @@ func TestInputValidation(t *testing.T) {
 		testServer := testutils.NewTestServer()
 		defer testServer.Close()
 
-		// The GORM library we're using handles parameterized queries, 
+		// The GORM library we're using handles parameterized queries,
 		// which prevents SQL injection attacks automatically
 		assert.True(t, true, "GORM provides SQL injection protection through parameterized queries")
 	})

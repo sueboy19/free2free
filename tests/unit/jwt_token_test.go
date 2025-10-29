@@ -1,213 +1,221 @@
 package unit
 
 import (
+	"strings"
 	"testing"
 	"time"
 
+	"free2free/tests/testutils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
-
-	"free2free/tests/testutils"
 )
 
 // TestJWTTokenGeneration tests the JWT token generation functionality
 func TestJWTTokenGeneration(t *testing.T) {
-	t.Run("Create valid JWT token", func(t *testing.T) {
-		userID := int64(12345)
-		userName := "Test User"
-		isAdmin := false
+	secret := "test-secret"
 
-		tokenString, err := testutils.CreateMockJWTToken(userID, userName, isAdmin)
+	t.Run("Valid Token Creation", func(t *testing.T) {
+		userID := uint(123)
+		email := "test@example.com"
+		role := "user"
+
+		tokenString, err := testutils.CreateValidToken(userID, email, role, secret)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, tokenString)
 
-		// Verify the token has the expected structure (3 parts separated by '.')
-		parts := splitToken(tokenString)
-		assert.Equal(t, 3, len(parts), "JWT should have 3 parts: header.payload.signature")
+		// Verify the token can be parsed and has correct claims
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return []byte(secret), nil
+		})
+
+		assert.NoError(t, err)
+		assert.True(t, token.Valid)
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		assert.True(t, ok)
+
+		assert.Equal(t, float64(userID), claims["user_id"])
+		assert.Equal(t, email, claims["email"])
+		assert.Equal(t, role, claims["role"])
+
+		// Check that expiration is in the future
+		exp, ok := claims["exp"].(float64)
+		assert.True(t, ok)
+		assert.True(t, exp > float64(time.Now().Unix()))
 	})
 
-	t.Run("Generated token contains correct claims", func(t *testing.T) {
-		userID := int64(67890)
-		userName := "Another Test User"
-		isAdmin := true
+	t.Run("Expired Token Creation", func(t *testing.T) {
+		userID := uint(123)
+		email := "test@example.com"
+		role := "user"
 
-		tokenString, err := testutils.CreateMockJWTToken(userID, userName, isAdmin)
+		tokenString, err := testutils.CreateExpiredToken(userID, email, role, secret)
 		assert.NoError(t, err)
+		assert.NotEmpty(t, tokenString)
 
-		// Validate the token and check claims
-		claims, err := testutils.ValidateJWTToken(tokenString)
-		assert.NoError(t, err)
-		assert.Equal(t, userID, claims.UserID)
-		assert.Equal(t, userName, claims.UserName)
-		assert.Equal(t, isAdmin, claims.IsAdmin)
-		assert.NotEmpty(t, claims.Issuer)
-		assert.NotEmpty(t, claims.Subject)
-	})
+		// Verify the token is expired when validated
+		// jwt.ParseWithOptions can handle validation errors differently
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return []byte(secret), nil
+		})
 
-	t.Run("Generated token expires after set time", func(t *testing.T) {
-		userID := int64(11111)
-		userName := "Expiring User"
-		isAdmin := false
-
-		tokenString, err := testutils.CreateMockJWTToken(userID, userName, isAdmin)
-		assert.NoError(t, err)
-
-		// Validate the token is initially valid
-		claims, err := testutils.ValidateJWTToken(tokenString)
-		assert.NoError(t, err)
-		assert.False(t, time.Now().After(claims.ExpiresAt.Time))
-
-		// The token should expire in 15 minutes as set in the function
-		assert.WithinDuration(t, time.Now().Add(15*time.Minute), claims.ExpiresAt.Time, 1*time.Minute)
-	})
-
-	t.Run("Invalid token fails validation", func(t *testing.T) {
-		// Test with completely invalid token
-		invalidToken := "this.is.not.a.valid.token"
-		claims, err := testutils.ValidateJWTToken(invalidToken)
-		assert.Error(t, err)
-		assert.Nil(t, claims)
-	})
-
-	t.Run("Expired token fails validation", func(t *testing.T) {
-		// Create a custom token with past expiration time
-		jwtSecret := "test-jwt-secret-key-32-chars-long-enough!!"
-
-		claims := &testutils.JWTClaims{
-			UserID:   99999,
-			UserName: "Expired User",
-			IsAdmin:  false,
-			RegisteredClaims: jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(-1 * time.Hour)), // Expired 1 hour ago
-				IssuedAt:  jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
-				Issuer:    "free2free-test",
-				Subject:   "user:99999",
-			},
+		// The error would be returned if the token is expired
+		// So we check both error and token validity
+		if err != nil {
+			// If there's an error, it might be a validation error (like expired)
+			// Check if it's a validation error related to expiration
+			if !strings.Contains(err.Error(), "token is expired") {
+				assert.NoError(t, err) // This would fail if it's some other error
+			}
+		}
+		
+		// If we get a token back, it might be invalid
+		if token != nil {
+			assert.False(t, token.Valid)
 		}
 
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		expiredToken, err := token.SignedString([]byte(jwtSecret))
-		assert.NoError(t, err)
-
-		// This token should be expired
-		isExpired, err := testutils.IsTokenExpired(expiredToken)
-		assert.NoError(t, err)
-		assert.True(t, isExpired)
-
-		// Validation should fail
-		_, err = testutils.ValidateJWTToken(expiredToken)
-		assert.Error(t, err)
-	})
-}
-
-// TestJWTTokenExtraction tests extracting information from JWT tokens
-func TestJWTTokenExtraction(t *testing.T) {
-	t.Run("Extract user ID from valid token", func(t *testing.T) {
-		expectedUserID := int64(54321)
-		userName := "Extract User"
-		isAdmin := false
-
-		tokenString, err := testutils.CreateMockJWTToken(expectedUserID, userName, isAdmin)
-		assert.NoError(t, err)
-
-		userID, err := testutils.GetUserIDFromToken(tokenString)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedUserID, userID)
+		// The token should be expired, so try parsing without verification to check claims
+		tokenUnverified, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Don't validate signatures or claims for this check
+			return []byte(secret), nil
+		})
+		
+		if claims, ok := tokenUnverified.Claims.(jwt.MapClaims); ok {
+			exp, ok := claims["exp"].(float64)
+			assert.True(t, ok)
+			assert.True(t, exp < float64(time.Now().Unix()))
+		}
 	})
 
-	t.Run("Extract user name from valid token", func(t *testing.T) {
-		userID := int64(98765)
-		expectedUserName := "Extract Name User"
-		isAdmin := true
+	t.Run("Token Validation", func(t *testing.T) {
+		userID := uint(456)
+		email := "validate@example.com"
+		role := "admin"
 
-		tokenString, err := testutils.CreateMockJWTToken(userID, expectedUserName, isAdmin)
+		tokenString, err := testutils.CreateValidToken(userID, email, role, secret)
 		assert.NoError(t, err)
 
-		userName, err := testutils.GetUserNameFromToken(tokenString)
+		claims, err := testutils.ValidateToken(tokenString, secret)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedUserName, userName)
+
+		assert.Equal(t, float64(userID), claims["user_id"])
+		assert.Equal(t, email, claims["email"])
+		assert.Equal(t, role, claims["role"])
 	})
 
-	t.Run("Check admin status from token", func(t *testing.T) {
-		userID := int64(12345)
-		userName := "Admin Check User"
-		expectedIsAdmin := true
-
-		tokenString, err := testutils.CreateMockJWTToken(userID, userName, expectedIsAdmin)
-		assert.NoError(t, err)
-
-		isAdmin, err := testutils.IsUserAdminFromToken(tokenString)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedIsAdmin, isAdmin)
-
-		// Test with non-admin user
-		nonAdminToken, err := testutils.CreateMockJWTToken(userID, userName, false)
-		assert.NoError(t, err)
-
-		isAdmin, err = testutils.IsUserAdminFromToken(nonAdminToken)
-		assert.NoError(t, err)
-		assert.False(t, isAdmin)
-	})
-
-	t.Run("Extraction fails with invalid token", func(t *testing.T) {
+	t.Run("Invalid Token Validation", func(t *testing.T) {
 		invalidToken := "invalid.token.string"
 
-		// All extraction functions should fail with invalid token
-		_, err := testutils.GetUserIDFromToken(invalidToken)
+		_, err := testutils.ValidateToken(invalidToken, secret)
 		assert.Error(t, err)
+	})
 
-		_, err = testutils.GetUserNameFromToken(invalidToken)
-		assert.Error(t, err)
+	t.Run("Token with Wrong Secret", func(t *testing.T) {
+		userID := uint(789)
+		email := "wrong-secret@example.com"
+		role := "user"
 
-		_, err = testutils.IsUserAdminFromToken(invalidToken)
+		tokenString, err := testutils.CreateValidToken(userID, email, role, secret)
+		assert.NoError(t, err)
+
+		// Try to validate with wrong secret
+		_, err = testutils.ValidateToken(tokenString, "wrong-secret")
 		assert.Error(t, err)
 	})
 }
 
-// TestJWTTokenSecurity tests security aspects of JWT tokens
-func TestJWTTokenSecurity(t *testing.T) {
-	t.Run("Token signature verification", func(t *testing.T) {
-		userID := int64(111222)
-		userName := "Secure User"
-		isAdmin := false
+// TestMockJWTValidator tests the mock JWT validator functionality
+func TestMockJWTValidator(t *testing.T) {
+	validator := testutils.NewMockJWTValidator()
 
-		tokenString, err := testutils.CreateMockJWTToken(userID, userName, isAdmin)
+	t.Run("Add and Validate Token", func(t *testing.T) {
+		token := "test-token-123"
+		userID := uint(123)
+
+		validator.AddValidToken(token, userID)
+
+		returnedUserID, err := validator.ValidateToken(token)
 		assert.NoError(t, err)
+		assert.Equal(t, userID, returnedUserID)
+	})
 
-		// The token should validate with the correct secret
-		claims, err := testutils.ValidateJWTToken(tokenString)
-		assert.NoError(t, err)
-		assert.Equal(t, userID, claims.UserID)
+	t.Run("Invalid Token Rejection", func(t *testing.T) {
+		token := "invalid-token-456"
 
-		// Modifying any part of the token should cause validation to fail
-		parts := splitToken(tokenString)
-		modifiedToken := parts[0] + "." + parts[1] + ".totallydifferentandsignature"
-		_, err = testutils.ValidateJWTToken(modifiedToken)
+		validator.AddInvalidToken(token)
+
+		_, err := validator.ValidateToken(token)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid token")
+	})
+
+	t.Run("Unknown Token Rejection", func(t *testing.T) {
+		token := "unknown-token-789"
+
+		_, err := validator.ValidateToken(token)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "token not found")
 	})
 }
 
-// Helper function to split a JWT token
-func splitToken(tokenString string) []string {
-	var parts []string
-	current := ""
-	inPart := true
+// TestTokenExpiration tests token expiration behavior
+func TestTokenExpiration(t *testing.T) {
+	secret := "test-secret"
 
-	for _, char := range tokenString {
-		if char == '.' {
-			parts = append(parts, current)
-			current = ""
-			inPart = false
-		} else {
-			if !inPart {
-				inPart = true
-			}
-			current += string(char)
+	t.Run("Token Expiration Validation", func(t *testing.T) {
+		// Create an expired token
+		tokenString, err := testutils.CreateExpiredToken(111, "expired@example.com", "user", secret)
+		assert.NoError(t, err)
+
+		// Try to validate the expired token
+		_, err = testutils.ValidateToken(tokenString, secret)
+		assert.Error(t, err)
+	})
+
+	t.Run("Valid Token Doesn't Expire Immediately", func(t *testing.T) {
+		userID := uint(222)
+		email := "valid@example.com"
+		role := "user"
+
+		tokenString, err := testutils.CreateValidToken(userID, email, role, secret)
+		assert.NoError(t, err)
+
+		// Immediately validate the token - should still be valid
+		claims, err := testutils.ValidateToken(tokenString, secret)
+		assert.NoError(t, err)
+
+		assert.Equal(t, float64(userID), claims["user_id"])
+		assert.Equal(t, email, claims["email"])
+		assert.Equal(t, role, claims["role"])
+	})
+}
+
+// BenchmarkTokenCreation benchmarks JWT token creation performance
+func BenchmarkTokenCreation(b *testing.B) {
+	secret := "benchmark-secret"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := testutils.CreateValidToken(uint(i), "test@example.com", "user", secret)
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
-	if current != "" {
-		parts = append(parts, current)
+}
+
+// BenchmarkTokenValidation benchmarks JWT token validation performance
+func BenchmarkTokenValidation(b *testing.B) {
+	secret := "benchmark-secret"
+	tokenString, err := testutils.CreateValidToken(999, "benchmark@example.com", "user", secret)
+	if err != nil {
+		b.Fatal(err)
 	}
 
-	return parts
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := testutils.ValidateToken(tokenString, secret)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

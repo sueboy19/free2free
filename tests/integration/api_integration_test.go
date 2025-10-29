@@ -78,9 +78,9 @@ func TestAPIEndpointsWithFacebookJWT(t *testing.T) {
 
 		// Create admin user and test again
 		adminUser := &testutils.TestUser{
-			ID:    user.ID, // Using same ID but updating admin status
-			Name:  user.Name,
-			Email: user.Email,
+			ID:      user.ID, // Using same ID but updating admin status
+			Name:    user.Name,
+			Email:   user.Email,
 			IsAdmin: true,
 		}
 		// Update user to be admin in the test database

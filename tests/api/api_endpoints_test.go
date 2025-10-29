@@ -21,7 +21,7 @@ func TestAPIEndpoints(t *testing.T) {
 	t.Run("SwaggerUI", func(t *testing.T) {
 		// 創建一個新的Gin路由器
 		r := gin.New()
-		
+
 		// 添加Swagger路由
 		r.GET("/swagger/*any", func(c *gin.Context) {
 			c.String(http.StatusOK, "Swagger UI")
@@ -30,7 +30,7 @@ func TestAPIEndpoints(t *testing.T) {
 		// 創建一個HTTP請求
 		req, _ := http.NewRequest("GET", "/swagger/index.html", nil)
 		w := httptest.NewRecorder()
-		
+
 		// 處理請求
 		r.ServeHTTP(w, req)
 
@@ -44,7 +44,7 @@ func TestAPIEndpoints(t *testing.T) {
 	t.Run("AuthEndpoints", func(t *testing.T) {
 		// 創建一個新的Gin路由器
 		r := gin.New()
-		
+
 		// 添加認證路由
 		r.GET("/auth/:provider", func(c *gin.Context) {
 			provider := c.Param("provider")
@@ -70,7 +70,7 @@ func TestAPIEndpoints(t *testing.T) {
 	t.Run("LogoutEndpoint", func(t *testing.T) {
 		// 創建一個新的Gin路由器
 		r := gin.New()
-		
+
 		// 添加登出路由
 		r.GET("/logout", func(c *gin.Context) {
 			c.JSON(http.StatusTemporaryRedirect, gin.H{"message": "logged out"})
@@ -88,7 +88,7 @@ func TestAPIEndpoints(t *testing.T) {
 	t.Run("ProtectedEndpoints", func(t *testing.T) {
 		// 創建一個新的Gin路由器
 		r := gin.New()
-		
+
 		// 添加受保護的路由
 		r.GET("/profile", func(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -106,7 +106,7 @@ func TestAPIEndpoints(t *testing.T) {
 	t.Run("AdminEndpoints", func(t *testing.T) {
 		// 創建一個新的Gin路由器
 		r := gin.New()
-		
+
 		// 添加管理員路由
 		admin := r.Group("/admin")
 		admin.GET("/activities", func(c *gin.Context) {
@@ -135,7 +135,7 @@ func TestAPIEndpoints(t *testing.T) {
 	t.Run("UserEndpoints", func(t *testing.T) {
 		// 創建一個新的Gin路由器
 		r := gin.New()
-		
+
 		// 添加使用者路由
 		user := r.Group("/user")
 		user.GET("/matches", func(c *gin.Context) {

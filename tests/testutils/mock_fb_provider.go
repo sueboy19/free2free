@@ -54,7 +54,7 @@ func (mfp *MockFacebookProvider) handler(w http.ResponseWriter, r *http.Request)
 // handleAuth handles the authorization request
 func (mfp *MockFacebookProvider) handleAuth(w http.ResponseWriter, r *http.Request) {
 	redirectURI := r.URL.Query().Get("redirect_uri")
-	
+
 	if redirectURI == "" {
 		http.Error(w, "Missing redirect_uri", http.StatusBadRequest)
 		return
@@ -69,22 +69,22 @@ func (mfp *MockFacebookProvider) handleAuth(w http.ResponseWriter, r *http.Reque
 func (mfp *MockFacebookProvider) handleCallback(w http.ResponseWriter, r *http.Request) {
 	// In a real implementation, this would verify the code and return an access token
 	// For testing, we directly return user information
-	
+
 	user := goth.User{
-		UserID:         "mock_facebook_user_id_12345",
-		Email:          "mockuser@example.com",
-		Name:           "Mock Test User",
-		FirstName:      "Mock",
-		LastName:       "User",
-		NickName:       "mockuser",
-		Description:    "A mock Facebook user for testing",
-		AvatarURL:      "https://example.com/mock-avatar.jpg",
-		Provider:       "facebook",
-		AccessToken:    "mock_access_token_12345",
-		ExpiresAt:      time.Now().Add(1 * time.Hour),
-		RefreshToken:   "mock_refresh_token_12345",
+		UserID:       "mock_facebook_user_id_12345",
+		Email:        "mockuser@example.com",
+		Name:         "Mock Test User",
+		FirstName:    "Mock",
+		LastName:     "User",
+		NickName:     "mockuser",
+		Description:  "A mock Facebook user for testing",
+		AvatarURL:    "https://example.com/mock-avatar.jpg",
+		Provider:     "facebook",
+		AccessToken:  "mock_access_token_12345",
+		ExpiresAt:    time.Now().Add(1 * time.Hour),
+		RefreshToken: "mock_refresh_token_12345",
 	}
-	
+
 	// Return user data as JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
@@ -93,17 +93,17 @@ func (mfp *MockFacebookProvider) handleCallback(w http.ResponseWriter, r *http.R
 // GetMockUser returns a mock user object for testing
 func GetMockUser() goth.User {
 	return goth.User{
-		UserID:         "mock_facebook_user_id_12345",
-		Email:          "mockuser@example.com",
-		Name:           "Mock Test User",
-		FirstName:      "Mock",
-		LastName:       "User",
-		NickName:       "mockuser",
-		Description:    "A mock Facebook user for testing",
-		AvatarURL:      "https://example.com/mock-avatar.jpg",
-		Provider:       "facebook",
-		AccessToken:    "mock_access_token_12345",
-		ExpiresAt:      time.Now().Add(1 * time.Hour),
-		RefreshToken:   "mock_refresh_token_12345",
+		UserID:       "mock_facebook_user_id_12345",
+		Email:        "mockuser@example.com",
+		Name:         "Mock Test User",
+		FirstName:    "Mock",
+		LastName:     "User",
+		NickName:     "mockuser",
+		Description:  "A mock Facebook user for testing",
+		AvatarURL:    "https://example.com/mock-avatar.jpg",
+		Provider:     "facebook",
+		AccessToken:  "mock_access_token_12345",
+		ExpiresAt:    time.Now().Add(1 * time.Hour),
+		RefreshToken: "mock_refresh_token_12345",
 	}
 }

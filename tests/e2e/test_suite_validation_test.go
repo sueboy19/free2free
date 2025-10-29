@@ -100,9 +100,9 @@ func TestSuiteExecutionValidation(t *testing.T) {
 
 		// Create admin user
 		adminUser := &testutils.TestUser{
-			ID:    regularUser.ID, // Same ID but updating admin status
-			Name:  regularUser.Name,
-			Email: regularUser.Email,
+			ID:      regularUser.ID, // Same ID but updating admin status
+			Name:    regularUser.Name,
+			Email:   regularUser.Email,
 			IsAdmin: true,
 		}
 		testServer.DB.Model(&regularUser).Update("is_admin", true)
