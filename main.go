@@ -32,6 +32,9 @@ import (
 	middlewarepkg "free2free/middleware"
 
 	_ "free2free/docs" // 这里需要导入你项目的文档包
+	
+	// Use modernc.org/sqlite as the underlying driver (no CGO required)
+	_ "modernc.org/sqlite"
 )
 
 // 声明全局变量
