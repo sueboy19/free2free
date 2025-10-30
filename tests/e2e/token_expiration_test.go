@@ -266,7 +266,8 @@ func TestTokenLifetime(t *testing.T) {
 
 // Helper function to create a token with specific claims (for testing short-lived tokens)
 func CreateTokenWithClaims(claims map[string]interface{}, secret string) string {
-	token := testutils.CreateTokenWithCustomClaims(claims, secret)
+	// Create a token with minimal user info for testing
+	token := testutils.CreateTokenWithCustomClaims(1, "test@example.com", "Test User", "user", secret, claims)
 	return token
 }
 

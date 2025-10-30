@@ -59,9 +59,9 @@ func TestEnvironmentSetupValidation(t *testing.T) {
 	t.Run("Test configuration loads properly", func(t *testing.T) {
 		config := testutils.GetTestConfig()
 
-		assert.NotEmpty(t, config.DBHost, "DBHost should not be empty")
-		assert.NotEmpty(t, config.DBPort, "DBPort should not be empty")
+		assert.NotEmpty(t, config.DatabaseURL, "DatabaseURL should not be empty")
 		assert.NotEmpty(t, config.JWTSecret, "JWTSecret should not be empty")
+		assert.NotEmpty(t, config.ServerPort, "ServerPort should not be empty")
 
 		// For JWT secret, ensure it's of sufficient length
 		assert.GreaterOrEqual(t, len(config.JWTSecret), 32, "JWTSecret should be at least 32 characters")
@@ -87,7 +87,7 @@ func TestEnvironmentSetupValidation(t *testing.T) {
 
 		// We've already used testutils, which depends on gin, gorm, and other packages
 		config := testutils.GetTestConfig()
-		assert.NotEmpty(t, config.BaseURL, "Configuration should load properly")
+		assert.NotEmpty(t, config.DatabaseURL, "Configuration should load properly")
 
 		// Initialize test server (which uses gin and gorm)
 		testServer := testutils.NewTestServer()
@@ -109,8 +109,7 @@ func TestEnvironmentConsistency(t *testing.T) {
 
 		// Both servers should have the same base configuration
 		// (Though they run on different ports)
-		assert.Equal(t, config1.DBHost, config2.DBHost, "DB host should be consistent")
-		assert.Equal(t, config1.DBPort, config2.DBPort, "DB port should be consistent")
+		assert.Equal(t, config1.DatabaseURL, config2.DatabaseURL, "Database URL should be consistent")
 		assert.Equal(t, config1.JWTSecret, config2.JWTSecret, "JWT secret should be consistent")
 
 		server1.Close()
@@ -129,8 +128,7 @@ func TestEnvironmentConsistency(t *testing.T) {
 		configEnd := testutils.GetTestConfig()
 
 		// Configuration should remain the same
-		assert.Equal(t, configStart.DBHost, configEnd.DBHost)
+		assert.Equal(t, configStart.DatabaseURL, configEnd.DatabaseURL)
 		assert.Equal(t, configStart.JWTSecret, configEnd.JWTSecret)
-		assert.Equal(t, configStart.FacebookAppID, configEnd.FacebookAppID)
 	})
 }

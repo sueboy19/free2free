@@ -121,6 +121,30 @@ func ValidateTokenAndCheckRole(tokenString, secret, requiredRole string) (uint, 
 	return 0, fmt.Errorf("user_id not found in token")
 }
 
+// IsTokenExpired checks if a JWT token is expired
+func IsTokenExpired(tokenString string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate the signing method (this is just for parsing, not validating)
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		// Return a dummy secret for parsing - not validating
+		return []byte("dummy"), nil
+	})
+
+	if err != nil {
+		return true, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		if exp, ok := claims["exp"].(float64); ok {
+			return time.Now().Unix() > int64(exp), nil
+		}
+	}
+
+	return false, fmt.Errorf("could not parse expiration time")
+}
+
 // MockJWTValidator provides a mock implementation for testing
 type MockJWTValidator struct {
 	ValidTokens   map[string]bool

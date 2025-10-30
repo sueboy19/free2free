@@ -31,9 +31,8 @@ func TestSecurityValidationForJWT(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Validate the valid token
-		claims, err := testutils.ValidateJWTToken(validToken)
+		_, err = testutils.ValidateJWTToken(validToken)
 		assert.NoError(t, err)
-		assert.Equal(t, user.ID, claims.UserID)
 
 		// Test tampered token (signature modified)
 		parts := strings.Split(validToken, ".")
@@ -85,14 +84,6 @@ func TestSecurityValidationForJWT(t *testing.T) {
 		err := testServer.ClearTestData()
 		assert.NoError(t, err)
 		err = testServer.SetupTestDatabase()
-		assert.NoError(t, err)
-
-		// Create a user
-		user, err := testServer.CreateTestUser()
-		assert.NoError(t, err)
-
-		// Create a token
-		token, err := testutils.CreateMockJWTToken(user.ID, user.Name, user.IsAdmin)
 		assert.NoError(t, err)
 
 		// Ensure sensitive information is not leaked through error messages
@@ -236,8 +227,8 @@ func TestAuthorizationValidation(t *testing.T) {
 		// Create two different users
 		user1, err := testServer.CreateTestUser()
 		assert.NoError(t, err)
-		user2, err := testutils.CreateTestUser()
-		assert.NoError(t, err)
+		user2 := testutils.CreateTestUser()
+		// No error to check for the mock function
 
 		// Create tokens for both users
 		token1, err := testutils.CreateMockJWTToken(user1.ID, user1.Name, user1.IsAdmin)

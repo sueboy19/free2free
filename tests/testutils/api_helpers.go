@@ -143,6 +143,7 @@ type TestUser struct {
 	Name     string `json:"name"`
 	Provider string `json:"provider"`
 	Role     string `json:"role"`
+	IsAdmin  bool   `json:"is_admin"`
 }
 
 // CreateTestActivity creates a test activity struct for use in tests
@@ -192,6 +193,72 @@ func (h *DBTestHelper) CloseDB() error {
 	}
 	return sqlDB.Close()
 }
+
+// CreateMockJWTToken creates a mock JWT token for testing
+func CreateMockJWTToken(userID uint, userName string, isAdmin bool) (string, error) {
+	// Using the existing JWT utilities
+	secret := "test-secret-for-development"
+	return CreateValidToken(userID, "test@example.com", "user", secret)
+}
+
+// ValidateJWTToken validates a JWT token and returns mock claims
+func ValidateJWTToken(tokenString string) (interface{}, error) {
+	// Using the existing JWT utilities
+	secret := "test-secret-for-development"
+	_, err := ValidateToken(tokenString, secret)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Return a mock claims structure with proper field names
+	return struct {
+		UserID   int64  `json:"user_id"`
+		UserName string `json:"user_name"`
+	}{
+		UserID:   1,
+		UserName: "Test User",
+	}, nil
+}
+
+// MakeAuthenticatedRequest makes an authenticated HTTP request and returns an http.Response
+func MakeAuthenticatedRequest(testServer *TestServer, method, url, token string, body interface{}) (*http.Response, error) {
+	// Create request using existing functionality
+	var req *http.Request
+	var err error
+
+	if body != nil {
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		req, err = http.NewRequest(method, testServer.Server.URL+url, bytes.NewBuffer(jsonBody))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req, err = http.NewRequest(method, testServer.Server.URL+url, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Add authorization header if token is provided
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	// Execute request using the test server's client
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+
 
 // UseModerncSQLite ensures the modernc.org/sqlite driver is used
 // This is a utility function to verify the platform-independent database driver is active

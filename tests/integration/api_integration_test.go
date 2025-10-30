@@ -274,9 +274,6 @@ func TestExpiredJWTInAPIRequests(t *testing.T) {
 
 // Helper function to create an expired JWT
 func createExpiredJWT(userID int64, userName string, isAdmin bool, jwtSecret string) (string, error) {
-	// This would import the actual JWT library and create a token with an expired time
-	// For the purpose of this test file we're just documenting the intent
-	// The actual implementation would be similar to what's in testutils/jwt_validator.go
-	// but with an expiration time in the past
-	return "", nil // Placeholder
+	// Using the existing JWT utilities from testutils
+	return testutils.CreateExpiredToken(uint(userID), "test@example.com", "user", jwtSecret)
 }

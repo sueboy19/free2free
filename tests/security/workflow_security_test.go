@@ -128,7 +128,7 @@ func TestInputValidationSecurity(t *testing.T) {
 			"location_id": 1,
 		}
 
-		w, err := testutils.PostRequest(ts.Router, "/api/activities", maliciousInput, token)
+		_, err := testutils.PostRequest(ts.Router, "/api/activities", maliciousInput, token)
 		assert.NoError(t, err)
 		// Should either reject the request or properly handle the input without executing SQL
 		// The exact status code would depend on validation implementation
@@ -142,7 +142,7 @@ func TestInputValidationSecurity(t *testing.T) {
 			"location_id": 1,
 		}
 
-		w, err := testutils.PostRequest(ts.Router, "/api/activities", maliciousInput, token)
+		_, err := testutils.PostRequest(ts.Router, "/api/activities", maliciousInput, token)
 		assert.NoError(t, err)
 		// Should either reject the request or properly sanitize the input
 		// The exact status code would depend on validation implementation
@@ -157,7 +157,7 @@ func TestInputValidationSecurity(t *testing.T) {
 			"__proto__":   map[string]interface{}{"admin": true}, // Potential prototype pollution
 		}
 
-		w, err := testutils.PostRequest(ts.Router, "/api/activities", maliciousInput, token)
+		_, err := testutils.PostRequest(ts.Router, "/api/activities", maliciousInput, token)
 		assert.NoError(t, err)
 		// Should properly validate and reject malicious fields
 	})

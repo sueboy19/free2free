@@ -154,9 +154,6 @@ func TestErrorConditions(t *testing.T) {
 	setupEdgeCaseRoutes(ts.Router)
 
 	t.Run("Malformed JSON Handling", func(t *testing.T) {
-		// Create an invalid JSON string
-		invalidJSON := `{"title": "test", "description":}`
-
 		// Make a request with invalid JSON (using httptest directly)
 		req, err := testutils.CreateTestAuthRequest("POST", "/api/activities", nil, "valid-token")
 		assert.NoError(t, err)

@@ -254,3 +254,58 @@ func (a *AuthTestHelper) ValidateTokenWithTimeout(tokenString string, timeout ti
 		return nil, fmt.Errorf("token validation exceeded timeout of %v", timeout)
 	}
 }
+
+// CreateTokenWithClaims creates a JWT token with the specified claims
+func CreateTokenWithClaims(claims map[string]interface{}, secret string) string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims(claims))
+	
+	// Sign and get the complete encoded token as a string using the secret
+	tokenString, err := token.SignedString([]byte(secret))
+	if err != nil {
+		// If there's an error, return an empty string
+		return ""
+	}
+	
+	return tokenString
+}
+
+// CreateTokenWithCustomClaims creates a JWT token with custom claims
+func CreateTokenWithCustomClaims(userID uint, email, name, role, secret string, customClaims map[string]interface{}) string {
+	// Create base claims
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"name":    name,
+		"role":    role,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	
+	// Add custom claims
+	for key, value := range customClaims {
+		claims[key] = value
+	}
+	
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	
+	// Sign and get the complete encoded token as a string using the secret
+	tokenString, err := token.SignedString([]byte(secret))
+	if err != nil {
+		// If there's an error, return an empty string
+		return ""
+	}
+	
+	return tokenString
+}
+
+// CreateTestUser creates a test user for testing purposes
+func CreateTestUser() *TestUser {
+	return &TestUser{
+		ID:       1,
+		Email:    "test@example.com",
+		Name:     "Test User",
+		Provider: "facebook",
+		Role:     "user",
+		IsAdmin:  false,
+	}
+}
