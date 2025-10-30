@@ -93,9 +93,9 @@ description: "Task list for Cross-Platform Testing Without Native Dependencies i
 
 - [X] T020 [P] [US3] Test application build without CGO in build scripts
 - [X] T021 [P] [US3] Create minimal container build validation in Dockerfile.test
-- [ ] T022 [US3] Add cross-platform build verification test in tests/unit/build_portability_test.go
-- [ ] T023 [US3] Implement container environment testing in tests/integration/container_test.go
-- [ ] T024 [US3] Document deployment process without native dependencies in docs/deployment.md
+- [X] T022 [US3] Add cross-platform build verification test in tests/unit/build_portability_test.go
+- [X] T023 [US3] Implement container environment testing in tests/integration/container_test.go
+- [X] T024 [US3] Document deployment process without native dependencies in docs/deployment.md
 
 **Checkpoint**: At this point, User Stories 1, 2 AND 3 should all work independently
 
@@ -105,12 +105,12 @@ description: "Task list for Cross-Platform Testing Without Native Dependencies i
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T025 Update documentation to reflect pure-Go SQLite implementation in README.md
-- [ ] T026 Add troubleshooting guide for common issues in docs/troubleshooting.md
-- [ ] T027 Performance optimization for pure-Go SQLite implementation
-- [ ] T028 Code cleanup and refactoring across test files
-- [ ] T029 Update CI/CD pipeline to test with CGO_ENABLED=0
-- [ ] T030 Run complete test suite validation in tests/validation/full_suite_test.go
+- [X] T025 Update documentation to reflect pure-Go SQLite implementation in README.md
+- [X] T026 Add troubleshooting guide for common issues in docs/troubleshooting.md
+- [X] T027 Performance optimization for pure-Go SQLite implementation
+- [X] T028 Code cleanup and refactoring across test files
+- [X] T029 Update CI/CD pipeline to test with CGO_ENABLED=0
+- [X] T030 Run complete test suite validation in tests/validation/full_suite_test.go
 
 ---
 

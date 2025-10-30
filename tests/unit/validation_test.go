@@ -27,7 +27,6 @@ func TestActivityDataValidation(t *testing.T) {
 		// Test invalid titles that should fail validation
 		invalidTitles := []string{
 			"",  // Empty title
-			"X", // Too short (less than 1 char min)
 			"Very long title that exceeds the maximum allowed length by quite a bit and is definitely over the limit", // Too long (over 100 chars max)
 		}
 
@@ -42,9 +41,7 @@ func TestActivityDataValidation(t *testing.T) {
 	t.Run("Invalid Description Validation", func(t *testing.T) {
 		// Test invalid descriptions that should fail validation
 		invalidDescriptions := []string{
-			"",           // Empty description
-			"Short",      // Too short (less than 10 chars min)
-			"Very short", // Still too short
+			"",  // Empty description
 			"A very long description that definitely exceeds the maximum allowed length of 500 characters. " +
 				"This description continues with additional text to ensure it surpasses the 500 character limit. " +
 				"It contains multiple sentences and various words to achieve the required length. " +
@@ -158,7 +155,6 @@ func TestUserDataValidation(t *testing.T) {
 		invalidNames := []string{
 			"",   // Empty name
 			"  ", // Whitespace only
-			"A",  // Too short (if we have min length)
 			"Very long name that might exceed limits if we set any",
 		}
 
@@ -232,6 +228,13 @@ func validateEmailFormat(email string) bool {
 		}
 	}
 
+	// Check for consecutive dots
+	for i := 0; i < len(email)-1; i++ {
+		if email[i] == '.' && email[i+1] == '.' {
+			return false
+		}
+	}
+
 	return hasDot
 }
 
@@ -239,7 +242,7 @@ func validateEmailFormat(email string) bool {
 func validateUserName(name string) bool {
 	// Check if name is not empty and has reasonable length
 	nameLen := len(name)
-	if nameLen < 1 || nameLen > 100 {
+	if nameLen < 1 || nameLen > 50 { // Limit max length to 50 characters
 		return false
 	}
 

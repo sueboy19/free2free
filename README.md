@@ -13,6 +13,7 @@
 ## 技術架構
 - 後端：Go 1.25 + Gin 框架
 - 資料庫：MariaDB (透過 Docker) + GORM
+- 測試資料庫：SQLite (pure-Go 實作，無需 CGO 依賴)
 - OAuth 認證：Goth 套件
 - Session 管理：Gorilla Sessions
 - 測試：平台獨立測試（無需 CGO 依賴）
