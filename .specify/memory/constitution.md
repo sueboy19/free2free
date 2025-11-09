@@ -1,9 +1,13 @@
 <!-- 
 Sync Impact Report:
-Version change: N/A → 1.0.0
-Added sections: All principles and governance rules
-Removed sections: N/A
-Templates requiring updates: N/A
+Version change: 1.0.0 → 1.0.1
+Added sections: None
+Removed sections: None
+Templates requiring updates: 
+- ✅ plan-template.md: Constitution Check section aligns with existing principles
+- ✅ spec-template.md: No mandatory changes needed for current principles
+- ✅ tasks-template.md: No mandatory changes needed for current principles
+- ⚠ README.md: Contains project-specific references but no constitution violations
 Follow-up TODOs: None
 -->
 # 買一送一配對網站 Constitution
@@ -37,4 +41,4 @@ TDD 強制執行：先寫測試 → 測試通過驗證 → 測試失敗 → 然�
 
 本憲法優先於所有其他開發實踐；任何與此憲法衝突的實踐必須修改以符合原則；修改憲法需要明確的文件、批准和遷移計劃；所有 PR/審查必須驗證合規性；複雜變更必須有適當的理由說明。
 
-**Version**: 1.0.0 | **Ratified**: 2025-10-19 | **Last Amended**: 2025-10-19
+**Version**: 1.0.1 | **Ratified**: 2025-10-19 | **Last Amended**: 2025-11-09

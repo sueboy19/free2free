@@ -68,16 +68,19 @@ As a developer, I need comprehensive API tests that validate the management and 
 
 ### Functional Requirements
 
-- **FR-001**: System MUST provide API endpoints for complete user authentication including login, logout, and session management
+- **FR-001**: System MUST provide API endpoints for complete user authentication including login, logout, and session management using JWT tokens
 - **FR-002**: System MUST provide API endpoints for creating, viewing, modifying, and deleting free2free items
 - **FR-003**: System MUST provide API endpoints for administrative review, approval, and management of free2free items
 - **FR-004**: System MUST validate all input data on API endpoints to prevent security vulnerabilities
-- **FR-005**: System MUST maintain session state and authentication across the complete workflow
+- **FR-005**: System MUST maintain session state and authentication across the complete workflow using JWT standards
 - **FR-006**: System MUST log all critical API interactions for audit and debugging purposes
 - **FR-007**: System MUST provide comprehensive error responses that are useful for debugging but don't expose sensitive information
 - **FR-008**: System MUST ensure appropriate permission levels for different user types (regular users vs admins) when accessing various API endpoints
 - **FR-009**: System MUST provide data validation for all input fields during the creation of free2free items
 - **FR-010**: System MUST provide appropriate status updates and tracking for items throughout the approval workflow
+- **FR-011**: System MUST implement comprehensive API tests using Go with the Gin framework following existing project architecture
+- **FR-012**: System MUST implement end-to-end testing covering the complete workflow from login to creating free2free items to management and approval
+- **FR-013**: System MUST use mock database for API testing instead of connecting to real database systems
 
 ### Dependencies and Assumptions
 
@@ -85,13 +88,24 @@ As a developer, I need comprehensive API tests that validate the management and 
 - **Dependency**: A database system that can store user and item data is already in place
 - **Assumption**: Current API endpoints exist but are not comprehensively tested
 - **Assumption**: There are different user roles (regular users and admins) with different permissions
-- **Assumption**: The test environment has access to the same data and services as the production environment
+- **Assumption**: The test environment will use mock database instead of connecting to real database systems
+- **Assumption**: The API tests will be implemented using Go with Gin framework consistent with existing project architecture
 
 ### Key Entities
 
 - **User Session**: Represents an authenticated user's interaction with the system, including their permissions and session token
 - **Free2Free Item**: Represents the core content in the system, including attributes like title, description, status, creator, and approval information
 - **Admin Review**: Represents the moderation workflow for free2free items, including status changes and approval/rejection actions
+
+## Clarifications
+
+### Session 2025-11-09
+
+- Q: API测试应采用什么技术栈？ → A: 遵循现有的Go后端架构，使用Gin框架
+- Q: 测试数据管理应如何处理？ → A: 使用数据库模拟而不连接真实数据库
+- Q: 会话管理应采用什么标准？ → A: 使用JWT (JSON Web Token) 标准进行会话管理
+- Q: 应该实现什么级别的测试覆盖？ → A: 实现端到端测试，覆盖从登录到创建free2free再到管理审核的完整用户工作流程
+- Q: API响应格式应遵循什么规范？ → A: 采用现有项目约定的API响应格式，遵循标准REST API最佳实践
 
 ## Success Criteria *(mandatory)*
 
@@ -104,3 +118,4 @@ As a developer, I need comprehensive API tests that validate the management and 
 - **SC-005**: Users can successfully complete the entire process from login to creating a free2free item in under 3 minutes with appropriate feedback
 - **SC-006**: System administrators can manage and approve free2free items with 99% success rate through the API
 - **SC-007**: All API error conditions are properly handled and tested with appropriate user feedback
+- **SC-008**: All API responses follow standard REST API format consistent with existing project architecture

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"free2free/models"
@@ -19,11 +20,11 @@ func TestCRUDOperationVerification(t *testing.T) {
 
 		// CREATE
 		user := &models.User{
-			Name:       "CRUD Test User",
-			Email:      "crud@example.com",
-			Provider:   "facebook",
-			ProviderID: "crud_123",
-			Avatar:     "https://example.com/avatar.jpg",
+			Name:           "CRUD Test User",
+			Email:          "crud@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "crud_123",
+			AvatarURL:      "https://example.com/avatar.jpg",
 		}
 
 		result := db.Create(user)
@@ -75,7 +76,6 @@ func TestCRUDOperationVerification(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "CRUD Test Activity",
 			Description: "Activity for CRUD testing",
-			Status:      "pending",
 		}
 
 		result := db.Create(activity)
@@ -88,8 +88,8 @@ func TestCRUDOperationVerification(t *testing.T) {
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "CRUD Test Activity", retrievedActivity.Title)
 
-		// UPDATE
-		activity.Status = "approved"
+		// UPDATE - Activity model doesn't have a Status field, only has Title, Description, etc.
+		activity.Description = "Updated CRUD Test Activity"
 		result = db.Save(activity)
 		assert.NoError(t, result.Error)
 
@@ -97,7 +97,7 @@ func TestCRUDOperationVerification(t *testing.T) {
 		var updatedActivity models.Activity
 		result = db.First(&updatedActivity, activity.ID)
 		assert.NoError(t, result.Error)
-		assert.Equal(t, "approved", updatedActivity.Status)
+		assert.Equal(t, "Updated CRUD Test Activity", updatedActivity.Description)
 
 		// DELETE
 		result = db.Delete(&models.Activity{}, activity.ID)
@@ -159,8 +159,10 @@ func TestCRUDOperationVerification(t *testing.T) {
 
 		// CREATE
 		match := &models.Match{
-			ActivityID: 1,
-			Status:     "open",
+			ActivityID:  1,
+			OrganizerID: 1,
+			MatchTime:   time.Now().Add(24 * time.Hour), // Tomorrow
+			Status:      "open", // Match model does have a Status field
 		}
 
 		result := db.Create(match)
@@ -174,7 +176,7 @@ func TestCRUDOperationVerification(t *testing.T) {
 		assert.Equal(t, uint(1), retrievedMatch.ActivityID)
 
 		// UPDATE
-		match.Status = "closed"
+		match.Status = "completed"
 		result = db.Save(match)
 		assert.NoError(t, result.Error)
 
@@ -182,7 +184,7 @@ func TestCRUDOperationVerification(t *testing.T) {
 		var updatedMatch models.Match
 		result = db.First(&updatedMatch, match.ID)
 		assert.NoError(t, result.Error)
-		assert.Equal(t, "closed", updatedMatch.Status)
+		assert.Equal(t, "completed", updatedMatch.Status)
 
 		// DELETE
 		result = db.Delete(&models.Match{}, match.ID)
@@ -211,10 +213,11 @@ func TestCRUDOperationVerification(t *testing.T) {
 
 		// Create a user
 		user := &models.User{
-			Name:       "Test User for Relationships",
-			Email:      "rel@example.com",
-			Provider:   "facebook",
-			ProviderID: "rel_456",
+			Name:           "Test User for Relationships",
+			Email:          "rel@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "rel_456",
+			AvatarURL:      "https://example.com/avatar.jpg",
 		}
 		result = db.Create(user)
 		assert.NoError(t, result.Error)
@@ -224,7 +227,6 @@ func TestCRUDOperationVerification(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Test Activity with Relationships",
 			Description: "Activity for relationship testing",
-			Status:      "pending",
 			LocationID:  location.ID,
 		}
 		result = db.Create(activity)
@@ -267,10 +269,10 @@ func TestCRUDOperationVerification(t *testing.T) {
 
 		// Create multiple records for complex query testing
 		users := []models.User{
-			{Name: "Alice", Email: "alice@example.com", Provider: "facebook", ProviderID: "a1"},
-			{Name: "Bob", Email: "bob@example.com", Provider: "facebook", ProviderID: "b2"},
-			{Name: "Charlie", Email: "charlie@example.com", Provider: "instagram", ProviderID: "c3"},
-			{Name: "Diana", Email: "diana@example.com", Provider: "facebook", ProviderID: "d4"},
+			{Name: "Alice", Email: "alice@example.com", SocialProvider: "facebook", SocialID: "a1"},
+			{Name: "Bob", Email: "bob@example.com", SocialProvider: "facebook", SocialID: "b2"},
+			{Name: "Charlie", Email: "charlie@example.com", SocialProvider: "instagram", SocialID: "c3"},
+			{Name: "Diana", Email: "diana@example.com", SocialProvider: "facebook", SocialID: "d4"},
 		}
 
 		for _, user := range users {
@@ -281,7 +283,7 @@ func TestCRUDOperationVerification(t *testing.T) {
 
 		// Test complex queries
 		var facebookUsers []models.User
-		result := db.Where("provider = ?", "facebook").Find(&facebookUsers)
+		result := db.Where("social_provider = ?", "facebook").Find(&facebookUsers)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, 3, len(facebookUsers))
 

@@ -28,7 +28,6 @@ import (
 	"free2free/models"
 	"free2free/routes"
 
-	apperrors "free2free/errors"
 	middlewarepkg "free2free/middleware"
 
 	_ "free2free/docs" // 这里需要导入你项目的文档包
@@ -146,14 +145,33 @@ func init() {
 // sessionsMiddleware 将 session 存储在 context 中
 func sessionsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Get or create a session
 		session, err := store.Get(c.Request, "free2free-session")
 		if err != nil {
-			c.Error(apperrors.NewAppError(http.StatusInternalServerError, "无法获取 session"))
-			c.Abort()
-			return
+			// If there's an error getting the session, log it but don't panic
+			// Just create a new empty session
+			session, _ = store.New(c.Request, "free2free-session")
 		}
+
+		// Make sure session is never nil
+		if session == nil {
+			session, _ = store.New(c.Request, "free2free-session")
+		}
+
+		// Set the session in the context
 		c.Set("session", session)
+		
+		// Continue with the request
 		c.Next()
+		
+		// Save the session if it was modified
+		if session != nil && session.Options != nil {
+			err := store.Save(c.Request, c.Writer, session)
+			if err != nil {
+				// Log the error but don't fail the request
+				fmt.Printf("Error saving session: %v\n", err)
+			}
+		}
 	}
 }
 

@@ -29,7 +29,77 @@ func getDBForUtils() *gorm.DB {
 // GetAuthenticatedUser 從 context 中取得已認證的使用者
 func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	// 首先嘗試從 session 取得使用者
-	session := c.MustGet("session").(*sessions.Session)
+	sessionVal, exists := c.Get("session")
+	if !exists {
+		// 如果沒有 session 在 context 中，嘗試從 JWT token 取得
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			return nil, errors.New("no authorization header and no session in context")
+		}
+
+		// 檢查 Bearer token 格式
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			return nil, errors.New("invalid authorization header format")
+		}
+
+		// 取得 token
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		// 驗證 token
+		claims, err := ValidateJWTToken(tokenString)
+		if err != nil {
+			return nil, err
+		}
+
+		// 從資料庫取得使用者資訊
+		var user models.User
+		err = getDBForUtils().First(&user, claims.UserID).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
+		}
+		if err != nil {
+			return nil, apperrors.MapGORMError(err)
+		}
+
+		return &user, nil
+	}
+
+	// 如果 session 存在，驗證它是否為正確的類型
+	session, ok := sessionVal.(*sessions.Session)
+	if !ok {
+		// 安全地處理會話類型斷言失敗的情況
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			return nil, errors.New("session type assertion failed and no authorization header")
+		}
+
+		// 檢查 Bearer token 格式
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			return nil, errors.New("invalid authorization header format")
+		}
+
+		// 取得 token
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		// 驗證 token
+		claims, err := ValidateJWTToken(tokenString)
+		if err != nil {
+			return nil, err
+		}
+
+		// 從資料庫取得使用者資訊
+		var user models.User
+		err = getDBForUtils().First(&user, claims.UserID).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
+		}
+		if err != nil {
+			return nil, apperrors.MapGORMError(err)
+		}
+
+		return &user, nil
+	}
+
 	if userID, ok := session.Values["user_id"]; ok {
 		// 從資料庫取得使用者資訊
 		var user models.User
@@ -46,7 +116,7 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	// 如果 session 中沒有使用者，嘗試從 JWT token 取得
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		return nil, errors.New("no authorization header")
+		return nil, errors.New("no user in session and no authorization header")
 	}
 
 	// 檢查 Bearer token 格式
@@ -67,7 +137,7 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	var user models.User
 	err = getDBForUtils().First(&user, claims.UserID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
+			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 	}
 	if err != nil {
 		return nil, apperrors.MapGORMError(err)

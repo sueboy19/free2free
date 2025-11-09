@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"free2free/models"
 	"free2free/database"
+	"free2free/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -128,7 +128,19 @@ func OauthCallback(c *gin.Context) {
 // @Failure 500 {object} ErrorResponse "登出失敗"
 // @Router /logout [get]
 func Logout(c *gin.Context) {
-	s := c.MustGet("session").(*sessions.Session)
+	// Safely get the session to avoid panic
+	sessionVal, exists := c.Get("session")
+	if !exists {
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "session not found in context"))
+		return
+	}
+	
+	s, ok := sessionVal.(*sessions.Session)
+	if !ok {
+		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "session type assertion failed"))
+		return
+	}
+	
 	userID, ok := s.Values["user_id"].(int64)
 	if ok {
 		// Delete refresh tokens for this user
@@ -156,7 +168,7 @@ func Logout(c *gin.Context) {
 // @Router /auth/token [get]
 func ExchangeToken(c *gin.Context) {
 	// 取得已認證的使用者
-	user, err := GetAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -205,7 +217,7 @@ func ExchangeToken(c *gin.Context) {
 // @Security ApiKeyAuth
 func Profile(c *gin.Context) {
 	// 取得已認證的使用者
-	user, err := GetAuthenticatedUser(c)
+	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
 		c.Error(apperrors.NewUnauthorizedError("未登入"))
 		return
@@ -446,52 +458,3 @@ func ValidateJWTToken(tokenString string) (*Claims, error) {
 	return nil, apperrors.NewUnauthorizedError("無效的 token")
 }
 
-// GetAuthenticatedUser 從 context 中取得已認證的使用者
-func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
-	// 首先嘗試從 session 取得使用者
-	session := c.MustGet("session").(*sessions.Session)
-	if userID, ok := session.Values["user_id"]; ok {
-		// 從資料庫取得使用者資訊
-		var user models.User
-		err := getDB().First(&user, userID).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
-		}
-		if err != nil {
-			return nil, apperrors.MapGORMError(err)
-		}
-		return &user, nil
-	}
-
-	// 如果 session 中沒有使用者，嘗試從 JWT token 取得
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		return nil, fmt.Errorf("no authorization header")
-	}
-
-	// 檢查 Bearer token 格式
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return nil, fmt.Errorf("invalid authorization header format")
-	}
-
-	// 取得 token
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-	// 驗證 token
-	claims, err := ValidateJWTToken(tokenString)
-	if err != nil {
-		return nil, err
-	}
-
-	// 從資料庫取得使用者資訊
-	var user models.User
-	err = getDB().First(&user, claims.UserID).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
-	}
-	if err != nil {
-		return nil, apperrors.MapGORMError(err)
-	}
-
-	return &user, nil
-}

@@ -24,9 +24,9 @@ description: "Task list for Complete API Testing implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [X] T001 Create project structure per implementation plan in tests/
-- [X] T002 Set up test environment configuration files for local testing
-- [X] T003 [P] Create test utilities directory structure in tests/testutils/
+- [ ] T001 Create project structure per implementation plan in tests/
+- [ ] T002 Set up test environment configuration files for local testing
+- [ ] T003 [P] Create test utilities directory structure in tests/testutils/
 
 ---
 
@@ -36,11 +36,11 @@ description: "Task list for Complete API Testing implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T004 Create base test configuration in tests/testutils/config.go
-- [X] T005 [P] Implement test server setup for API testing in tests/testutils/test_server.go
-- [X] T006 Create mock database for testing in tests/testutils/mock_db.go
-- [X] T007 Create JWT token validation utility for tests in tests/testutils/jwt_validator.go
-- [X] T008 Create helper functions for API testing in tests/testutils/api_helpers.go
+- [ ] T004 Create base test configuration in tests/testutils/config.go
+- [ ] T005 [P] Implement test server setup for API testing in tests/testutils/test_server.go
+- [ ] T006 Create mock database for testing in tests/testutils/mock_db.go
+- [ ] T007 Create JWT token validation utility for tests in tests/testutils/jwt_validator.go
+- [ ] T008 Create helper functions for API testing in tests/testutils/api_helpers.go
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -56,17 +56,17 @@ description: "Task list for Complete API Testing implementation"
 
 **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T009 [P] [US1] Contract test for authentication endpoints in tests/contract/auth_endpoints_contract.go
-- [X] T010 [P] [US1] Integration test for OAuth login flow in tests/integration/auth_integration_test.go
-- [X] T011 [P] [US1] Unit test for JWT token generation in tests/unit/jwt_token_test.go
+- [ ] T009 [P] [US1] Contract test for authentication endpoints in tests/contract/auth_endpoints_contract.go
+- [ ] T010 [P] [US1] Integration test for OAuth login flow in tests/integration/auth_integration_test.go
+- [ ] T011 [P] [US1] Unit test for JWT token generation in tests/unit/jwt_token_test.go
 
 ### Implementation for User Story 1
 
-- [X] T012 [P] [US1] Create authentication test helpers in tests/testutils/auth_test_helpers.go
-- [X] T013 [US1] Implement login flow test with valid credentials in tests/e2e/login_e2e_test.go
-- [X] T014 [US1] Implement login flow test with invalid credentials in tests/e2e/login_e2e_test.go
-- [X] T015 [US1] Implement session management test in tests/e2e/login_e2e_test.go
-- [X] T016 [US1] Add test for token expiration scenarios in tests/e2e/token_expiration_test.go
+- [ ] T012 [P] [US1] Create authentication test helpers in tests/testutils/auth_test_helpers.go
+- [ ] T013 [US1] Implement login flow test with valid credentials in tests/e2e/login_e2e_test.go
+- [ ] T014 [US1] Implement login flow test with invalid credentials in tests/e2e/login_e2e_test.go
+- [ ] T015 [US1] Implement session management test in tests/e2e/login_e2e_test.go
+- [ ] T016 [US1] Add test for token expiration scenarios in tests/e2e/token_expiration_test.go
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -80,18 +80,18 @@ description: "Task list for Complete API Testing implementation"
 
 ### Tests for User Story 2 (REQUIRED - based on spec) ⚠️
 
-- [X] T017 [P] [US2] Contract test for activities endpoints in tests/contract/activities_endpoints_contract.go
-- [X] T018 [P] [US2] Integration test for create free2free flow in tests/integration/activities_integration_test.go
-- [X] T019 [P] [US2] Unit test for data validation in tests/unit/validation_test.go
-- [X] T020 [P] [US2] Integration test for user endpoints in tests/integration/user_api_integration_test.go
+- [ ] T017 [P] [US2] Contract test for activities endpoints in tests/contract/activities_endpoints_contract.go
+- [ ] T018 [P] [US2] Integration test for create free2free flow in tests/integration/activities_integration_test.go
+- [ ] T019 [P] [US2] Unit test for data validation in tests/unit/validation_test.go
+- [ ] T020 [P] [US2] Integration test for user endpoints in tests/integration/user_api_integration_test.go
 
 ### Implementation for User Story 2
 
-- [X] T021 [P] [US2] Create test data generator for API testing in tests/testutils/test_data.go
-- [X] T022 [US2] Implement create free2free test with valid data in tests/integration/activities_integration_test.go
-- [X] T023 [US2] Implement create free2free test with invalid data in tests/integration/activities_integration_test.go
-- [X] T024 [US2] Implement unauthorized create attempt test in tests/integration/activities_integration_test.go
-- [X] T025 [US2] Add test for data validation scenarios in tests/unit/validation_test.go
+- [ ] T021 [P] [US2] Create test data generator for API testing in tests/testutils/test_data.go
+- [ ] T022 [US2] Implement create free2free test with valid data in tests/integration/activities_integration_test.go
+- [ ] T023 [US2] Implement create free2free test with invalid data in tests/integration/activities_integration_test.go
+- [ ] T024 [US2] Implement unauthorized create attempt test in tests/integration/activities_integration_test.go
+- [ ] T025 [US2] Add test for data validation scenarios in tests/unit/validation_test.go
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -105,18 +105,18 @@ description: "Task list for Complete API Testing implementation"
 
 ### Tests for User Story 3 (REQUIRED - based on spec) ⚠️
 
-- [X] T026 [P] [US3] Contract test for admin endpoints in tests/contract/admin_endpoints_contract.go
-- [X] T027 [P] [US3] Integration test for admin approval flow in tests/integration/admin_integration_test.go
-- [X] T028 [P] [US3] Integration test for admin management endpoints in tests/integration/admin_api_integration_test.go
-- [X] T029 [P] [US3] Integration test for admin rejection flow in tests/integration/admin_integration_test.go
+- [ ] T026 [P] [US3] Contract test for admin endpoints in tests/contract/admin_endpoints_contract.go
+- [ ] T027 [P] [US3] Integration test for admin approval flow in tests/integration/admin_integration_test.go
+- [ ] T028 [P] [US3] Integration test for admin management endpoints in tests/integration/admin_api_integration_test.go
+- [ ] T029 [P] [US3] Integration test for admin rejection flow in tests/integration/admin_integration_test.go
 
 ### Implementation for User Story 3
 
-- [X] T030 [P] [US3] Create admin test helpers in tests/testutils/admin_test_helpers.go
-- [X] T031 [US3] Implement approve free2free item test in tests/integration/admin_integration_test.go
-- [X] T032 [US3] Implement reject free2free item test in tests/integration/admin_integration_test.go
-- [X] T033 [US3] Implement admin view management test in tests/integration/admin_integration_test.go
-- [X] T034 [US3] Add permission checking test for different user roles in tests/integration/admin_integration_test.go
+- [ ] T030 [P] [US3] Create admin test helpers in tests/testutils/admin_test_helpers.go
+- [ ] T031 [US3] Implement approve free2free item test in tests/integration/admin_integration_test.go
+- [ ] T032 [US3] Implement reject free2free item test in tests/integration/admin_integration_test.go
+- [ ] T033 [US3] Implement admin view management test in tests/integration/admin_integration_test.go
+- [ ] T034 [US3] Add permission checking test for different user roles in tests/integration/admin_integration_test.go
 
 **Checkpoint**: At this point, User Stories 1, 2 AND 3 should all work independently
 
@@ -130,16 +130,16 @@ description: "Task list for Complete API Testing implementation"
 
 ### Tests for User Story 4 (REQUIRED - based on spec) ⚠️
 
-- [X] T035 [P] [US4] End-to-end workflow test from login to approval in tests/e2e/complete_workflow_test.go
-- [X] T036 [P] [US4] Performance test for complete API workflow in tests/performance/workflow_performance_test.go
-- [X] T037 [P] [US4] Security validation test for complete workflow in tests/security/workflow_security_test.go
+- [ ] T035 [P] [US4] End-to-end workflow test from login to approval in tests/e2e/complete_workflow_test.go
+- [ ] T036 [P] [US4] Performance test for complete API workflow in tests/performance/workflow_performance_test.go
+- [ ] T037 [P] [US4] Security validation test for complete workflow in tests/security/workflow_security_test.go
 
 ### Implementation for User Story 4
 
-- [X] T038 [P] [US4] Create complete workflow test runner in tests/e2e/complete_workflow_test.go
-- [X] T039 [US4] Implement complete login to creation to approval test in tests/e2e/complete_workflow_test.go
-- [X] T040 [US4] Add performance validation for each workflow step in tests/performance/workflow_performance_test.go
-- [X] T041 [US4] Add security validation for workflow in tests/security/workflow_security_test.go
+- [ ] T038 [P] [US4] Create complete workflow test runner in tests/e2e/complete_workflow_test.go
+- [ ] T039 [US4] Implement complete login to creation to approval test in tests/e2e/complete_workflow_test.go
+- [ ] T040 [US4] Add performance validation for each workflow step in tests/performance/workflow_performance_test.go
+- [ ] T041 [US4] Add security validation for workflow in tests/security/workflow_security_test.go
 
 **Checkpoint**: All user stories should now be integrated and working together
 
@@ -149,12 +149,12 @@ description: "Task list for Complete API Testing implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [X] T042 [P] Documentation updates for test setup in tests/README.md
-- [X] T043 Code cleanup and refactoring across test files
-- [X] T044 Performance optimization for test execution
-- [X] T045 [P] Additional edge case tests in tests/e2e/edge_case_test.go
-- [X] T046 Security validation tests for JWT and OAuth tokens
-- [X] T047 Run quickstart.md validation for complete test suite
+- [ ] T042 [P] Documentation updates for test setup in tests/README.md
+- [ ] T043 Code cleanup and refactoring across test files
+- [ ] T044 Performance optimization for test execution
+- [ ] T045 [P] Additional edge case tests in tests/e2e/edge_case_test.go
+- [ ] T046 Security validation tests for JWT and OAuth tokens
+- [ ] T047 Run quickstart.md validation for complete test suite
 
 ---
 
