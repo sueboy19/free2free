@@ -2,13 +2,12 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
-	"free2free/models"
 	"free2free/database"
+	"free2free/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -75,11 +74,15 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 
 		// 檢查 Bearer token 格式
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			return nil, errors.New("invalid authorization header format")
+			return nil, apperrors.NewAuthenticationError("authentication required")
 		}
 
 		// 取得 token
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		if tokenString == "" {
+			return nil, apperrors.NewAuthenticationError("authentication required")
+		}
 
 		// 驗證 token
 		claims, err := ValidateJWTToken(tokenString)
@@ -116,12 +119,12 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	// 如果 session 中沒有使用者，嘗試從 JWT token 取得
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		return nil, errors.New("no user in session and no authorization header")
+		return nil, apperrors.NewAuthenticationError("authentication required")
 	}
 
 	// 檢查 Bearer token 格式
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return nil, errors.New("invalid authorization header format")
+		return nil, apperrors.NewAuthenticationError("authentication required")
 	}
 
 	// 取得 token
@@ -137,7 +140,7 @@ func GetAuthenticatedUser(c *gin.Context) (*models.User, error) {
 	var user models.User
 	err = getDBForUtils().First(&user, claims.UserID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
+		return nil, apperrors.NewAppError(http.StatusNotFound, "user not found")
 	}
 	if err != nil {
 		return nil, apperrors.MapGORMError(err)
@@ -151,7 +154,11 @@ func ValidateJWTToken(tokenString string) (*Claims, error) {
 	// 获取JWT密钥
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		return nil, fmt.Errorf("JWT_SECRET 环境变量未设置")
+		return nil, apperrors.NewInternalError("JWT_SECRET not configured")
+	}
+
+	if len(jwtSecret) < 32 {
+		return nil, apperrors.NewInternalError("JWT_SECRET length insufficient")
 	}
 
 	// 解析token
@@ -160,7 +167,8 @@ func ValidateJWTToken(tokenString string) (*Claims, error) {
 	})
 
 	if err != nil {
-		return nil, apperrors.NewUnauthorizedError(err.Error())
+		// Return standardized JWT error based on error type
+		return nil, apperrors.NewAuthenticationError("invalid token")
 	}
 
 	// 验证token
@@ -168,7 +176,7 @@ func ValidateJWTToken(tokenString string) (*Claims, error) {
 		return claims, nil
 	}
 
-	return nil, apperrors.NewUnauthorizedError("無效的 token")
+	return nil, apperrors.NewInvalidTokenError()
 }
 
 // JWT claims struct

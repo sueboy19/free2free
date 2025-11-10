@@ -12,8 +12,9 @@ import (
 )
 
 type ErrorResponse struct {
-	Error string `json:"error"`
-	Code  int    `json:"code"`
+	Error     string `json:"error"`
+	Code      int    `json:"code"`
+	ErrorCode string `json:"code_error,omitempty"` // Standardized error code
 }
 
 // formatValidationErrors formats validator errors into a readable string
@@ -67,10 +68,30 @@ func ErrorHandler() gin.HandlerFunc {
 			lastErr := c.Errors.Last()
 			var status int
 			var message string
+			var errorCode string
 
 			if appErr, ok := lastErr.Err.(*errors.AppError); ok {
 				status = appErr.Status()
 				message = appErr.Message
+				if appErr.ErrorCode != "" {
+					errorCode = appErr.ErrorCode
+				} else {
+					// Default error codes for common error types
+					switch status {
+					case http.StatusUnauthorized:
+						errorCode = "AUTH_REQUIRED"
+					case http.StatusForbidden:
+						errorCode = "FORBIDDEN"
+					case http.StatusBadRequest:
+						errorCode = "INVALID_INPUT"
+					case http.StatusNotFound:
+						errorCode = "NOT_FOUND"
+					case http.StatusInternalServerError:
+						errorCode = "INTERNAL_ERROR"
+					default:
+						errorCode = "UNKNOWN_ERROR"
+					}
+				}
 			} else if lastErr.Type == gin.ErrorTypeBind {
 				// Handle binding errors, including validator errors
 				if ve, ok := lastErr.Err.(validator.ValidationErrors); ok {
@@ -80,17 +101,21 @@ func ErrorHandler() gin.HandlerFunc {
 					message = lastErr.Err.Error()
 				}
 				status = http.StatusBadRequest
+				errorCode = "VALIDATION_ERROR"
 			} else if httpErr, ok := lastErr.Err.(interface{ Status() int }); ok {
 				status = httpErr.Status()
 				message = lastErr.Error()
+				errorCode = "HTTP_ERROR"
 			} else {
 				status = http.StatusInternalServerError
-				message = "Internal server error"
+				message = "internal server error"
+				errorCode = "INTERNAL_ERROR"
 			}
 
 			resp := ErrorResponse{
-				Error: message,
-				Code:  status,
+				Error:     message,
+				Code:      status,
+				ErrorCode: errorCode,
 			}
 
 			// 確保響應是 JSON

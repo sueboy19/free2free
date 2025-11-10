@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"free2free/models"
 	"free2free/database"
+	"free2free/models"
 	"free2free/utils"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +22,7 @@ import (
 	"gorm.io/gorm"
 
 	apperrors "free2free/errors"
+
 	"github.com/go-playground/validator/v10"
 )
 
@@ -70,14 +71,14 @@ func OauthCallback(c *gin.Context) {
 	// 使用 gothic 取得使用者資訊
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, err.Error()))
+		c.Error(apperrors.NewOAuthError("OAuth authentication failed"))
 		return
 	}
 
 	// 儲存或更新使用者資訊到資料庫
 	dbUser, err := saveOrUpdateUser(user)
 	if err != nil {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "儲存使用者資訊失敗"))
+		c.Error(apperrors.NewInternalError("failed to save user information"))
 		return
 	}
 
@@ -93,7 +94,7 @@ func OauthCallback(c *gin.Context) {
 	// 生成 JWT tokens
 	accessToken, refreshToken, hashedRefresh, err := GenerateTokens(dbUser)
 	if err != nil {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "生成 token 失敗"))
+		c.Error(apperrors.NewInternalError("token generation failed"))
 		return
 	}
 
@@ -131,16 +132,16 @@ func Logout(c *gin.Context) {
 	// Safely get the session to avoid panic
 	sessionVal, exists := c.Get("session")
 	if !exists {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "session not found in context"))
+		c.Error(apperrors.NewInternalError("session not found in context"))
 		return
 	}
-	
+
 	s, ok := sessionVal.(*sessions.Session)
 	if !ok {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "session type assertion failed"))
+		c.Error(apperrors.NewInternalError("session type assertion failed"))
 		return
 	}
-	
+
 	userID, ok := s.Values["user_id"].(int64)
 	if ok {
 		// Delete refresh tokens for this user
@@ -170,14 +171,14 @@ func ExchangeToken(c *gin.Context) {
 	// 取得已認證的使用者
 	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
-		c.Error(apperrors.NewUnauthorizedError("未登入"))
+		c.Error(apperrors.NewAuthenticationError("not logged in"))
 		return
 	}
 
 	// 生成 JWT tokens
 	accessToken, refreshToken, hashedRefresh, err := GenerateTokens(user)
 	if err != nil {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "生成 token 失敗"))
+		c.Error(apperrors.NewInternalError("token generation failed"))
 		return
 	}
 
@@ -219,7 +220,7 @@ func Profile(c *gin.Context) {
 	// 取得已認證的使用者
 	user, err := utils.GetAuthenticatedUser(c)
 	if err != nil {
-		c.Error(apperrors.NewUnauthorizedError("未登入"))
+		c.Error(apperrors.NewAuthenticationError("not logged in"))
 		return
 	}
 
@@ -365,12 +366,12 @@ func RefreshTokenHandler(c *gin.Context) {
 		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperrors.NewValidationError("無效的請求資料"))
+		c.Error(apperrors.NewBadRequestError("invalid request data"))
 		return
 	}
 
 	if req.RefreshToken == "" {
-		c.Error(apperrors.NewUnauthorizedError("缺少 refresh token"))
+		c.Error(apperrors.NewBadRequestError("refresh token required"))
 		return
 	}
 
@@ -390,21 +391,21 @@ func RefreshTokenHandler(c *gin.Context) {
 	}
 
 	if validRecord == nil {
-		c.Error(apperrors.NewUnauthorizedError("無效的 refresh token"))
+		c.Error(apperrors.NewAuthenticationError("invalid refresh token"))
 		return
 	}
 
 	// Get user
 	var user models.User
 	if err := getDB().First(&user, validRecord.UserID).Error; err != nil {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "無法取得使用者"))
+		c.Error(apperrors.NewInternalError("user not found"))
 		return
 	}
 
 	// Generate new tokens
 	newAccessToken, newRefreshToken, newHashedRefresh, err := GenerateTokens(&user)
 	if err != nil {
-		c.Error(apperrors.NewAppError(http.StatusInternalServerError, "生成新 token 失敗"))
+		c.Error(apperrors.NewInternalError("token generation failed"))
 		return
 	}
 
@@ -457,4 +458,3 @@ func ValidateJWTToken(tokenString string) (*Claims, error) {
 
 	return nil, apperrors.NewUnauthorizedError("無效的 token")
 }
-
