@@ -1,9 +1,13 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { useToast } from 'vue-toastification'
 
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+// 移除結尾的斜線以避免雙斜線問題
+const cleanBaseURL = baseURL.replace(/\/+$/, '')
+
 // 創建 API 客戶端實例
 const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: cleanBaseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

@@ -38,9 +38,10 @@ export const useAuthStore = defineStore('auth', () => {
   const login = async (provider: 'facebook' | 'instagram') => {
     try {
       // 打開 OAuth 登入頁面
-      const authUrl = provider === 'facebook' 
-        ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/auth/facebook`
-        : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/auth/instagram`
+      const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '')
+      const authUrl = provider === 'facebook'
+        ? `${baseUrl}/auth/facebook`
+        : `${baseUrl}/auth/instagram`
       
       // 創建彈出視窗進行 OAuth 登入
       const authWindow = window.open(

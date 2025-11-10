@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -110,13 +111,58 @@ func OauthCallback(c *gin.Context) {
 		return
 	}
 
-	// 返回使用者資訊和 tokens
-	c.JSON(http.StatusOK, gin.H{
-		"user":          dbUser,
+	// 返回 HTML 頁面來處理 OAuth 回調
+	c.Header("Content-Type", "text/html")
+
+	// 序列化用戶資料和 token
+	userJSON, err := json.Marshal(dbUser)
+	if err != nil {
+		c.Error(apperrors.NewInternalError("Failed to serialize user data"))
+		return
+	}
+
+	tokenData := gin.H{
 		"access_token":  accessToken,
 		"refresh_token": refreshToken,
-		"expires_in":    15 * 60, // 15 minutes in seconds
-	})
+		"expires_in":    15 * 60,
+	}
+
+	tokenJSON, err := json.Marshal(tokenData)
+	if err != nil {
+		c.Error(apperrors.NewInternalError("Failed to serialize token data"))
+		return
+	}
+
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+	   <title>Facebook 登入成功</title>
+	   <script>
+	       (function() {
+	           var response = {
+	               type: 'auth_success',
+	               payload: {
+	                   user: %s,
+	                   token: %s
+	               }
+	           };
+	           
+	           if (window.opener) {
+	               window.opener.postMessage(response, '*');
+	           }
+	           
+	           setTimeout(function() {
+	               window.close();
+	           }, 1000);
+	       })();
+	   </script>
+</head>
+<body>
+	   <p>登入成功，正在返回...</p>
+</body>
+</html>`, string(userJSON), string(tokenJSON))
+
+	c.String(http.StatusOK, html)
 }
 
 // logout 處理登出
@@ -243,12 +289,16 @@ func saveOrUpdateUser(gothUser goth.User) (*models.User, error) {
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// 使用者不存在，建立新使用者
+		now := time.Now().UnixNano() / 1e6 // 毫秒時間戳
 		user = models.User{
 			SocialID:       gothUser.UserID,
 			SocialProvider: gothUser.Provider,
 			Name:           gothUser.Name,
 			Email:          gothUser.Email,
 			AvatarURL:      gothUser.AvatarURL,
+			IsAdmin:        false,
+			CreatedAt:      now,
+			UpdatedAt:      now,
 		}
 
 		// Validate new user
@@ -265,26 +315,17 @@ func saveOrUpdateUser(gothUser goth.User) (*models.User, error) {
 		}
 	} else {
 		// 使用者已存在，更新資訊
-		updatedUser := models.User{
-			ID:             user.ID,
-			SocialID:       user.SocialID,
-			SocialProvider: user.SocialProvider,
-			Name:           gothUser.Name,
-			Email:          gothUser.Email,
-			AvatarURL:      gothUser.AvatarURL,
-			IsAdmin:        user.IsAdmin,
+		now := time.Now().UnixNano() / 1e6 // 毫秒時間戳
+
+		// 只更新需要的欄位，避免意外修改其他欄位
+		updates := map[string]interface{}{
+			"name":       gothUser.Name,
+			"email":      gothUser.Email,
+			"avatar_url": gothUser.AvatarURL,
+			"updated_at": now,
 		}
 
-		// Validate updated user
-		if err := v.Struct(&updatedUser); err != nil {
-			return nil, apperrors.NewValidationError("Invalid update data from OAuth: " + err.Error())
-		}
-
-		user.Name = gothUser.Name
-		user.Email = gothUser.Email
-		user.AvatarURL = gothUser.AvatarURL
-
-		if err := getDB().Save(&user).Error; err != nil {
+		if err := getDB().Model(&user).Updates(updates).Error; err != nil {
 			return nil, apperrors.MapGORMError(err)
 		}
 	}
