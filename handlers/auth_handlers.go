@@ -93,7 +93,7 @@ func OauthCallback(c *gin.Context) {
 	session.Save(c.Request, c.Writer)
 
 	// 生成 JWT tokens
-	accessToken, refreshToken, hashedRefresh, err := GenerateTokens(dbUser)
+	accessToken, _, hashedRefresh, err := GenerateTokens(dbUser)
 	if err != nil {
 		c.Error(apperrors.NewInternalError("token generation failed"))
 		return
@@ -114,53 +114,42 @@ func OauthCallback(c *gin.Context) {
 	// 返回 HTML 頁面來處理 OAuth 回調
 	c.Header("Content-Type", "text/html")
 
-	// 序列化用戶資料和 token
+	// 序列化用戶資料
 	userJSON, err := json.Marshal(dbUser)
 	if err != nil {
 		c.Error(apperrors.NewInternalError("Failed to serialize user data"))
 		return
 	}
 
-	tokenData := gin.H{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-		"expires_in":    15 * 60,
-	}
-
-	tokenJSON, err := json.Marshal(tokenData)
-	if err != nil {
-		c.Error(apperrors.NewInternalError("Failed to serialize token data"))
-		return
-	}
-
+	// 前端期望的是字符串 token，不是對象
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
-	   <title>Facebook 登入成功</title>
-	   <script>
-	       (function() {
-	           var response = {
-	               type: 'auth_success',
-	               payload: {
-	                   user: %s,
-	                   token: %s
-	               }
-	           };
-	           
-	           if (window.opener) {
-	               window.opener.postMessage(response, '*');
-	           }
-	           
-	           setTimeout(function() {
-	               window.close();
-	           }, 1000);
-	       })();
-	   </script>
+	  <title>Facebook 登入成功</title>
+	  <script>
+	      (function() {
+	          var response = {
+	              type: 'auth_success',
+	              payload: {
+	                  user: %s,
+	                  token: "%s"
+	              }
+	          };
+	          
+	          if (window.opener) {
+	              window.opener.postMessage(response, '*');
+	          }
+	          
+	          setTimeout(function() {
+	              window.close();
+	          }, 1000);
+	      })();
+	  </script>
 </head>
 <body>
-	   <p>登入成功，正在返回...</p>
+	  <p>登入成功，正在返回...</p>
 </body>
-</html>`, string(userJSON), string(tokenJSON))
+</html>`, string(userJSON), accessToken)
 
 	c.String(http.StatusOK, html)
 }

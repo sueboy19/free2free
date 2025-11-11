@@ -31,7 +31,7 @@ import (
 	middlewarepkg "free2free/middleware"
 
 	_ "free2free/docs" // 这里需要导入你项目的文档包
-	
+
 	// Use modernc.org/sqlite as the underlying driver (no CGO required)
 	_ "modernc.org/sqlite"
 )
@@ -137,7 +137,7 @@ func init() {
 	}
 
 	gothic.Store = store
-	
+
 	// Set the store in handlers package
 	handlers.SetStore(store)
 }
@@ -160,10 +160,10 @@ func sessionsMiddleware() gin.HandlerFunc {
 
 		// Set the session in the context
 		c.Set("session", session)
-		
+
 		// Continue with the request
 		c.Next()
-		
+
 		// Save the session if it was modified
 		if session != nil && session.Options != nil {
 			err := store.Save(c.Request, c.Writer, session)
@@ -201,13 +201,41 @@ func main() {
 	}
 
 	r := gin.Default()
-	r.Use(cors.Default())
-	// 生產環境請鎖域：
-	// config := cors.Config{
-	// 	AllowOrigins: []string{"https://yourdomain.com"},
-	// 	AllowCredentials: true,
-	// }
-	// r.Use(cors.New(config))
+
+	// 動態獲取前端 URL 來配置 CORS
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	// 設定 CORS 支援跨域請求
+	corsConfig := cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			frontendURL, // 使用環境變數中的前端 URL
+		},
+		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Type",
+			"Content-Length",
+			"Authorization",
+			"Accept",
+			"X-Requested-With",
+			"Access-Control-Request-Method",
+			"Access-Control-Request-Headers",
+		},
+		AllowCredentials: true,
+		ExposeHeaders: []string{
+			"Content-Length",
+			"Access-Control-Allow-Origin",
+			"Access-Control-Allow-Headers",
+			"Content-Type",
+		},
+		MaxAge: 12 * time.Hour,
+	}
+
+	r.Use(cors.New(corsConfig))
 
 	// 添加Swagger路由
 	if os.Getenv("GIN_MODE") != "release" {
@@ -253,5 +281,3 @@ func main() {
 	// 啟動伺服器
 	r.Run(":8080")
 }
-
-
