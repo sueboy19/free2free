@@ -22,6 +22,7 @@ https://89z5cmtz-3000.asse.devtunnels.ms
 - 設置有效的聯繫郵箱
 
 ### 2. Facebook Login 設定 (Facebook Login > Settings)
+使用案例 ->自訂 -> 設定
 
 **有效的 OAuth 重新導向 URI:**
 ```
