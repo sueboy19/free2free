@@ -3,9 +3,10 @@ package integration
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"free2free/models"
 	"free2free/tests/testutils"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestExistingDatabaseOperations tests that all existing database operations work identically
@@ -19,11 +20,11 @@ func TestExistingDatabaseOperations(t *testing.T) {
 
 		// Test creating a user with all fields (as would happen in auth flow)
 		user := &models.User{
-			Name:       "Existing Op Test User",
-			Email:      "existing@example.com",
-			Provider:   "facebook",
-			ProviderID: "existing_123",
-			Avatar:     "https://example.com/existing_avatar.jpg",
+			Name:           "Existing Op Test User",
+			Email:          "existing@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "existing_123",
+			AvatarURL:      "https://example.com/existing_avatar.jpg",
 		}
 
 		result := db.Create(user)
@@ -32,7 +33,7 @@ func TestExistingDatabaseOperations(t *testing.T) {
 
 		// Test finding user by provider and provider ID (common auth operation)
 		var foundUser models.User
-		result = db.Where("provider = ? AND provider_id = ?", "facebook", "existing_123").First(&foundUser)
+		result = db.Where("social_provider = ? AND social_id = ?", "facebook", "existing_123").First(&foundUser)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "Existing Op Test User", foundUser.Name)
 		assert.Equal(t, "existing@example.com", foundUser.Email)
@@ -71,7 +72,6 @@ func TestExistingDatabaseOperations(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Existing Op Test Activity",
 			Description: "Activity for existing operations test",
-			Status:      "pending",
 			LocationID:  location.ID,
 		}
 
@@ -87,16 +87,16 @@ func TestExistingDatabaseOperations(t *testing.T) {
 		assert.Equal(t, location.ID, retrievedActivity.LocationID)
 		assert.Equal(t, "Test Location", retrievedActivity.Location.Name)
 
-		// Test updating activity status (admin workflow)
-		retrievedActivity.Status = "approved"
+		// Test updating activity description (admin workflow)
+		retrievedActivity.Description = "Updated activity description"
 		result = db.Save(&retrievedActivity)
 		assert.NoError(t, result.Error)
 
-		// Verify status update
+		// Verify update
 		var updatedActivity models.Activity
 		result = db.First(&updatedActivity, activity.ID)
 		assert.NoError(t, result.Error)
-		assert.Equal(t, "approved", updatedActivity.Status)
+		assert.Equal(t, "Updated activity description", updatedActivity.Description)
 	})
 
 	t.Run("Admin Management Operations", func(t *testing.T) {
@@ -108,10 +108,10 @@ func TestExistingDatabaseOperations(t *testing.T) {
 
 		// Create a user
 		user := &models.User{
-			Name:       "Admin Test User",
-			Email:      "admin@example.com",
-			Provider:   "facebook",
-			ProviderID: "admin_456",
+			Name:           "Admin Test User",
+			Email:          "admin@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "admin_456",
 		}
 		result := db.Create(user)
 		assert.NoError(t, result.Error)
@@ -119,22 +119,22 @@ func TestExistingDatabaseOperations(t *testing.T) {
 
 		// Create an admin entry
 		admin := &models.Admin{
-			UserID:      user.ID,
-			Permissions: "read,write,delete",
+			Username: "admin_test",
+			Email:    "admin@example.com",
 		}
 
 		result = db.Create(admin)
 		assert.NoError(t, result.Error)
 		assert.NotZero(t, admin.ID)
 
-		// Test finding admin by user ID
+		// Test finding admin by username
 		var foundAdmin models.Admin
-		result = db.Where("user_id = ?", user.ID).First(&foundAdmin)
+		result = db.Where("username = ?", "admin_test").First(&foundAdmin)
 		assert.NoError(t, result.Error)
-		assert.Equal(t, user.ID, foundAdmin.UserID)
+		assert.Equal(t, "admin_test", foundAdmin.Username)
 
-		// Test updating admin permissions
-		foundAdmin.Permissions = "read,write"
+		// Test updating admin username
+		foundAdmin.Username = "admin_updated"
 		result = db.Save(&foundAdmin)
 		assert.NoError(t, result.Error)
 
@@ -142,7 +142,7 @@ func TestExistingDatabaseOperations(t *testing.T) {
 		var updatedAdmin models.Admin
 		result = db.First(&updatedAdmin, admin.ID)
 		assert.NoError(t, result.Error)
-		assert.Equal(t, "read,write", updatedAdmin.Permissions)
+		assert.Equal(t, "admin_updated", updatedAdmin.Username)
 	})
 
 	t.Run("Match Creation and Management", func(t *testing.T) {
@@ -156,7 +156,6 @@ func TestExistingDatabaseOperations(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Match Test Activity",
 			Description: "Activity for match creation test",
-			Status:      "active",
 		}
 		result := db.Create(activity)
 		assert.NoError(t, result.Error)
@@ -174,19 +173,19 @@ func TestExistingDatabaseOperations(t *testing.T) {
 		// Add a participant to the match
 		participant := &models.MatchParticipant{
 			MatchID: match.ID,
-			Status:  "confirmed",
+			UserID:  1, // Assuming a test user
+			Status:  "approved",
 		}
 		result = db.Create(participant)
 		assert.NoError(t, result.Error)
 		assert.NotZero(t, participant.ID)
 
-		// Test retrieving match with participants
+		// Test retrieving match
 		var retrievedMatch models.Match
-		result = db.Preload("Participants").First(&retrievedMatch, match.ID)
+		result = db.First(&retrievedMatch, match.ID)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, activity.ID, retrievedMatch.ActivityID)
 		assert.Equal(t, "open", retrievedMatch.Status)
-		assert.Equal(t, 1, len(retrievedMatch.Participants))
 
 		// Test updating match status
 		retrievedMatch.Status = "closed"
@@ -218,9 +217,9 @@ func TestExistingDatabaseOperations(t *testing.T) {
 
 		// Create a review for the match
 		review := &models.Review{
-			MatchID:   match.ID,
-			Score:     5,
-			Comment:   "Great experience!",
+			MatchID: match.ID,
+			Score:   5,
+			Comment: "Great experience!",
 		}
 		result = db.Create(review)
 		assert.NoError(t, result.Error)
@@ -229,19 +228,25 @@ func TestExistingDatabaseOperations(t *testing.T) {
 		// Create a like for the review
 		like := &models.ReviewLike{
 			ReviewID: review.ID,
-			Score:    1, // Like
+			UserID:   1, // Assuming a test user
+			IsLike:   true,
 		}
 		result = db.Create(like)
 		assert.NoError(t, result.Error)
 		assert.NotZero(t, like.ID)
 
-		// Test retrieving review with likes count
+		// Test retrieving review with likes
 		var retrievedReview models.Review
-		result = db.Preload("ReviewLikes").First(&retrievedReview, review.ID)
+		result = db.Preload("User").First(&retrievedReview, review.ID)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, match.ID, retrievedReview.MatchID)
 		assert.Equal(t, "Great experience!", retrievedReview.Comment)
-		assert.Equal(t, 1, len(retrievedReview.ReviewLikes))
+
+		// Test retrieving like
+		var retrievedLike models.ReviewLike
+		result = db.First(&retrievedLike, like.ID)
+		assert.NoError(t, result.Error)
+		assert.Equal(t, true, retrievedLike.IsLike)
 
 		// Test updating review
 		retrievedReview.Comment = "Updated review comment"

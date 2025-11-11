@@ -2,10 +2,12 @@ package integration
 
 import (
 	"testing"
+	"time"
 
-	"github.com/stretchr/testify/assert"
 	"free2free/models"
 	"free2free/tests/testutils"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestSchemaMigrationOperations tests schema migration operations with the new driver
@@ -20,10 +22,10 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Verify the table was created by attempting to use it
 		user := &models.User{
-			Name:       "Migration Test User",
-			Email:      "mig@example.com",
-			Provider:   "facebook",
-			ProviderID: "mig_123",
+			Name:           "Migration Test User",
+			Email:          "mig@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "mig_123",
 		}
 
 		result := db.Create(user)
@@ -66,10 +68,10 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Create a user
 		user := &models.User{
-			Name:       "Migration Test User",
-			Email:      "mig2@example.com",
-			Provider:   "facebook",
-			ProviderID: "mig2_456",
+			Name:           "Migration Test User",
+			Email:          "mig2@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "mig2_456",
 		}
 		result = db.Create(user)
 		assert.NoError(t, result.Error)
@@ -79,7 +81,6 @@ func TestSchemaMigrationOperations(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Migration Test Activity",
 			Description: "Activity for migration test",
-			Status:      "pending",
 			LocationID:  location.ID,
 		}
 		result = db.Create(activity)
@@ -113,10 +114,10 @@ func TestSchemaMigrationOperations(t *testing.T) {
 		// Test operations across all models to ensure they're properly created
 		// Create a user
 		user := &models.User{
-			Name:       "Complex Migration Test User",
-			Email:      "complexmig@example.com",
-			Provider:   "facebook",
-			ProviderID: "cmig_789",
+			Name:           "Complex Migration Test User",
+			Email:          "complexmig@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "cmig_789",
 		}
 		result := db.Create(user)
 		assert.NoError(t, result.Error)
@@ -124,8 +125,8 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Create an admin
 		admin := &models.Admin{
-			UserID:      user.ID,
-			Permissions: "all",
+			Username: "complex_mig_admin",
+			Email:    "admin@complexmig.com",
 		}
 		result = db.Create(admin)
 		assert.NoError(t, result.Error)
@@ -146,7 +147,6 @@ func TestSchemaMigrationOperations(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Complex Migration Test Activity",
 			Description: "Activity for complex migration test",
-			Status:      "pending",
 			LocationID:  location.ID,
 		}
 		result = db.Create(activity)
@@ -164,27 +164,23 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Create a match participant
 		participant := &models.MatchParticipant{
-			MatchID: match.ID,
-			Status:  "confirmed",
+			MatchID:  match.ID,
+			UserID:   user.ID,
+			Status:   "approved",
+			JoinedAt: time.Now(),
 		}
 		result = db.Create(participant)
 		assert.NoError(t, result.Error)
 		assert.NotZero(t, participant.ID)
 
-		// Create a refresh token
-		token := &models.RefreshToken{
-			UserID: user.ID,
-			Token:  "complex_migration_token",
-		}
-		result = db.Create(token)
-		assert.NoError(t, result.Error)
-		assert.NotZero(t, token.ID)
-
 		// Create a review
 		review := &models.Review{
-			MatchID: match.ID,
-			Score:   5,
-			Comment: "Great complex migration test!",
+			MatchID:    match.ID,
+			ReviewerID: user.ID,
+			RevieweeID: user.ID,
+			Score:      5,
+			Comment:    "Great complex migration test!",
+			CreatedAt:  time.Now(),
 		}
 		result = db.Create(review)
 		assert.NoError(t, result.Error)
@@ -193,25 +189,35 @@ func TestSchemaMigrationOperations(t *testing.T) {
 		// Create a review like
 		like := &models.ReviewLike{
 			ReviewID: review.ID,
-			Score:    1,
+			UserID:   user.ID,
+			IsLike:   true,
 		}
 		result = db.Create(like)
 		assert.NoError(t, result.Error)
 		assert.NotZero(t, like.ID)
 
+		// Create a refresh token
+		token := &models.RefreshToken{
+			UserID:    uint(user.ID),
+			Token:     "complex_migration_token",
+			ExpiresAt: time.Now().Add(24 * time.Hour),
+			CreatedAt: time.Now(),
+		}
+		result = db.Create(token)
+		assert.NoError(t, result.Error)
+		assert.NotZero(t, token.ID)
+
 		// Verify all relationships work
 		var fullMatch models.Match
-		result = db.Preload("Activity").Preload("Activity.Location").Preload("Participants").First(&fullMatch, match.ID)
+		result = db.Preload("Activity").Preload("Activity.Location").First(&fullMatch, match.ID)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "Complex Migration Test Activity", fullMatch.Activity.Title)
 		assert.Equal(t, "Complex Migration Test Location", fullMatch.Activity.Location.Name)
-		assert.Equal(t, 1, len(fullMatch.Participants))
 
 		var fullReview models.Review
-		result = db.Preload("ReviewLikes").First(&fullReview, review.ID)
+		result = db.Preload("User").First(&fullReview, review.ID)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "Great complex migration test!", fullReview.Comment)
-		assert.Equal(t, 1, len(fullReview.ReviewLikes))
 	})
 
 	t.Run("Migration Idempotency", func(t *testing.T) {
@@ -224,10 +230,10 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Create a user to verify the table works
 		user := &models.User{
-			Name:       "Idempotency Test User",
-			Email:      "idem@example.com",
-			Provider:   "facebook",
-			ProviderID: "idem_001",
+			Name:           "Idempotency Test User",
+			Email:          "idem@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "idem_001",
 		}
 		result := db.Create(user)
 		assert.NoError(t, result.Error)
@@ -245,10 +251,10 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Create another user to verify the table still works after re-migration
 		user2 := &models.User{
-			Name:       "Idempotency Test User 2",
-			Email:      "idem2@example.com",
-			Provider:   "instagram",
-			ProviderID: "idem_002",
+			Name:           "Idempotency Test User 2",
+			Email:          "idem2@example.com",
+			SocialProvider: "instagram",
+			SocialID:       "idem_002",
 		}
 		result = db.Create(user2)
 		assert.NoError(t, result.Error)
@@ -271,10 +277,10 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Create some data
 		user := &models.User{
-			Name:       "Preservation Test User",
-			Email:      "pres@example.com",
-			Provider:   "facebook",
-			ProviderID: "pres_001",
+			Name:           "Preservation Test User",
+			Email:          "pres@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "pres_001",
 		}
 		result := db.Create(user)
 		assert.NoError(t, result.Error)
@@ -290,7 +296,7 @@ func TestSchemaMigrationOperations(t *testing.T) {
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "Preservation Test User", preservedUser.Name)
 		assert.Equal(t, "pres@example.com", preservedUser.Email)
-		assert.Equal(t, "facebook", preservedUser.Provider)
+		assert.Equal(t, "facebook", preservedUser.SocialProvider)
 	})
 
 	t.Run("Sequential Migration of Related Models", func(t *testing.T) {
@@ -319,7 +325,6 @@ func TestSchemaMigrationOperations(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Sequential Migration Activity",
 			Description: "Activity for sequential migration test",
-			Status:      "pending",
 			LocationID:  location.ID,
 		}
 		result = db.Create(activity)
@@ -350,8 +355,10 @@ func TestSchemaMigrationOperations(t *testing.T) {
 		assert.NotZero(t, match.ID)
 
 		participant := &models.MatchParticipant{
-			MatchID: match.ID,
-			Status:  "confirmed",
+			MatchID:  match.ID,
+			UserID:   1, // Simple test user
+			Status:   "approved",
+			JoinedAt: time.Now(),
 		}
 		result = db.Create(participant)
 		assert.NoError(t, result.Error)
@@ -359,10 +366,9 @@ func TestSchemaMigrationOperations(t *testing.T) {
 
 		// Verify full chain works
 		var fullMatch models.Match
-		result = db.Preload("Activity").Preload("Activity.Location").Preload("Participants").First(&fullMatch, match.ID)
+		result = db.Preload("Activity").Preload("Activity.Location").First(&fullMatch, match.ID)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, activity.ID, fullMatch.ActivityID)
 		assert.Equal(t, location.ID, fullMatch.Activity.LocationID)
-		assert.Equal(t, 1, len(fullMatch.Participants))
 	})
 }

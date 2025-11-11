@@ -249,7 +249,7 @@ func TestExpiredJWTInAPIRequests(t *testing.T) {
 
 	// Create an expired JWT token using a custom function
 	jwtSecret := "test-jwt-secret-key-32-chars-long-enough!!"
-	expiredToken, err := createExpiredJWT(user.ID, user.Name, user.IsAdmin, jwtSecret)
+	expiredToken, err := createExpiredJWT(int64(user.ID), user.Name, user.IsAdmin, jwtSecret)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, expiredToken)
 

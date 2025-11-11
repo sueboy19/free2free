@@ -21,7 +21,7 @@ func TestOAuthLoginFlow(t *testing.T) {
 	defer ts.Close()
 
 	// Create test database
-	db, err := testutils.CreateTestDB()
+	_, err := testutils.CreateTestDB()
 	assert.NoError(t, err)
 
 	// Test successful OAuth redirect
@@ -139,7 +139,7 @@ func TestDatabaseIntegration(t *testing.T) {
 	defer ts.Close()
 
 	// Create test database
-	db, err := testutils.CreateTestDB()
+	_, err := testutils.CreateTestDB()
 	assert.NoError(t, err)
 
 	t.Run("User Creation on OAuth", func(t *testing.T) {
