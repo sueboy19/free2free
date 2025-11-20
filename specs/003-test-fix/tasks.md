@@ -102,7 +102,14 @@ description: "Task list for Test Fix implementation"
 - [X] T020 [P] [US3] Unit test for JWT claims structure in tests/unit/jwt_claims_test.go
 - [X] T021 [P] [US3] Unit test for User model fields in tests/unit/user_model_test.go
 - [X] T022 [US3] Integration test compilation validation in tests/integration/build_validation_test.go
-- [X] T040 [P] [US3] Unit test for authentication error feedback messages in tests/unit/auth_feedback_test.go
+- [X] T040 [P] [US3] Implement authentication error handling and fix model field mismatches including:
+  - Create unit test for authentication error feedback messages in tests/unit/auth_feedback_test.go
+  - Fix model field mismatches in integration tests (Provider → SocialProvider, etc.)
+  - Fix type mismatches between uint and int64 in test utilities
+  - Fix unused variable declarations in auth integration tests
+  - Update migration test to use correct model fields and types
+  - Verify basic project build and core test functionality
+  - Correct JWT token validation in Facebook auth integration tests
 
 ### Implementation for User Story 3
 
@@ -155,12 +162,7 @@ description: "Task list for Test Fix implementation"
 
 **Purpose**: Fix compilation and integration test issues discovered during implementation verification
 
-- [X] T040 Fix model field mismatches in integration tests (Provider → SocialProvider, etc.)
-- [X] T041 Fix type mismatches between uint and int64 in test utilities
-- [X] T042 Fix unused variable declarations in auth integration tests
-- [X] T043 Update migration test to use correct model fields and types
-- [X] T044 Verify basic project build and core test functionality
-- [X] T045 Correct JWT token validation in Facebook auth integration tests
+*Note: Tasks T040-T045 have been moved to User Story 3 (Phase 5) for better organization and to resolve task ID conflicts.*
 
 ---
 

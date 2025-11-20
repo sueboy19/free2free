@@ -1,5 +1,5 @@
 ---
-description: "Task list for Facebook login and API test suite implementation"
+description: "Task list for Facebook 登入與 API 測試套件 implementation"
 ---
 
 # Tasks: Facebook 登入與 API 測試套件
@@ -17,16 +17,18 @@ description: "Task list for Facebook login and API test suite implementation"
 - Include exact file paths in descriptions
 
 ## Path Conventions
-- **Single project**: `tests/` at repository root
+- **Single project**: `src/`, `tests/` at repository root
+- **Web app**: `backend/src/`, `frontend/src/`
+- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
 - Paths shown below assume single project - adjust based on plan.md structure
 
 ## Phase 1: Setup (Shared Infrastructure)
 
 **Purpose**: Project initialization and basic structure
 
-- [X] T001 Create project structure per implementation plan in tests/
-- [X] T002 Set up test environment configuration files for local testing
-- [X] T003 [P] Create test utilities directory structure in tests/testutils/
+- [ ] T001 Create project structure per implementation plan
+- [ ] T002 Initialize Go 1.25 project with Gin framework dependencies
+- [ ] T003 [P] Configure linting and formatting tools (golangci-lint, go fmt)
 
 ---
 
@@ -36,11 +38,13 @@ description: "Task list for Facebook login and API test suite implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T004 Create base test configuration in tests/testutils/config.go
-- [X] T005 [P] Implement test server setup for Facebook OAuth testing in tests/testutils/test_server.go
-- [X] T006 Create mock Facebook OAuth provider for testing in tests/testutils/mock_fb_provider.go
-- [X] T007 Set up JWT token validation utility for tests in tests/testutils/jwt_validator.go
-- [X] T008 Create helper functions for API testing in tests/testutils/api_helpers.go
+- [ ] T004 Setup database schema and migrations framework using GORM
+- [ ] T005 [P] Implement authentication/authorization framework with JWT token handling
+- [ ] T006 [P] Setup API routing and middleware structure in routes/ and middleware/
+- [ ] T007 Create base models/entities that all stories depend on in models/
+- [ ] T008 Configure error handling and logging infrastructure
+- [ ] T009 Setup environment configuration management for Facebook OAuth credentials
+- [ ] T010 [P] Implement Facebook OAuth 2.0 integration using Goth OAuth library
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -48,25 +52,25 @@ description: "Task list for Facebook login and API test suite implementation"
 
 ## Phase 3: User Story 1 - Facebook 登入功能測試 (Priority: P1) 🎯 MVP
 
-**Goal**: 在本地開發環境中，開發者需要測試 Facebook 登入功能，確保能正確完成 OAuth 流程，取得必要的 JWT token，並驗證登入狀態的有效性。
+**Goal**: 實現完整的 Facebook OAuth 2.0 登入流程，確保能正確完成授權並生成 JWT token
 
-**Independent Test**: 可以獨立測試 Facebook OAuth 流程的完整性和正確性，確保使用者能夠成功登入並取得適當的認證 token。
+**Independent Test**: 可以獨立測試 Facebook OAuth 流程的完整性和正確性，確保使用者能夠成功登入並取得適當的認證 token
 
-### Tests for User Story 1 (REQUIRED - based on spec) ⚠️
+### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
 
 **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T009 [P] [US1] Contract test for Facebook OAuth endpoints in tests/contract/test_fb_oauth_contract.go
-- [X] T010 [P] [US1] Integration test for Facebook OAuth flow in tests/integration/fb_auth_integration_test.go
-- [X] T011 [P] [US1] Unit test for JWT token generation in tests/unit/jwt_token_test.go
+- [ ] T011 [P] [US1] Contract test for Facebook OAuth endpoints in tests/contract/oauth_endpoints_contract.go
+- [ ] T012 [P] [US1] Integration test for Facebook OAuth flow in tests/integration/fb_auth_integration_test.go
 
 ### Implementation for User Story 1
 
-- [X] T012 [P] [US1] Create Facebook OAuth test helpers in tests/testutils/fb_test_helpers.go
-- [X] T013 [US1] Implement Facebook login flow test in tests/e2e/fb_login_e2e_test.go
-- [X] T014 [US1] Implement JWT token validation test after Facebook login in tests/e2e/fb_login_e2e_test.go
-- [X] T015 [US1] Add test cases for Facebook OAuth callback handling in tests/e2e/fb_login_e2e_test.go
-- [X] T016 [US1] Add test for Facebook login failure scenarios in tests/e2e/fb_login_e2e_test.go
+- [ ] T013 [P] [US1] Create Facebook OAuth handler in handlers/auth_handlers.go
+- [ ] T014 [P] [US1] Create JWT token generation utility in utils/
+- [ ] [US1] Implement Facebook OAuth callback handler in routes/user.go
+- [ ] [US1] Implement JWT token validation middleware in middleware/
+- [ ] [US1] Add Facebook OAuth configuration in config/
+- [ ] [US1] Add logging for Facebook OAuth operations
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -74,28 +78,23 @@ description: "Task list for Facebook login and API test suite implementation"
 
 ## Phase 4: User Story 2 - 完整 API 功能測試 (Priority: P2)
 
-**Goal**: 在本地環境中，已透過 Facebook 登入的使用者需要能夠正確執行所有 API 功能，包括配對活動、評論、管理員功能等，確保系統功能完整。
+**Goal**: 使用 Facebook 登入後獲得的 JWT token 測試所有受保護的 API 端點
 
-**Independent Test**: 可以使用 Facebook 登入後獲得的 token 訪問和測試所有受保護的 API 端點。
+**Independent Test**: 可以使用 Facebook 登入後獲得的 token 訪問和測試所有受保護的 API 端點
 
-### Tests for User Story 2 (REQUIRED - based on spec) ⚠️
+### Tests for User Story 2 (OPTIONAL - only if tests requested) ⚠️
 
-- [X] T017 [P] [US2] Contract test for all protected API endpoints in tests/contract/test_protected_endpoints_contract.go
-- [X] T018 [P] [US2] Integration test for API endpoints with Facebook JWT token in tests/integration/api_integration_test.go
-- [X] T019 [P] [US2] Integration test for all user endpoints in tests/integration/user_api_integration_test.go
-- [X] T020 [P] [US2] Integration test for all admin endpoints in tests/integration/admin_api_integration_test.go
-- [X] T021 [P] [US2] Integration test for all organizer endpoints in tests/integration/organizer_api_integration_test.go
-- [X] T022 [P] [US2] Integration test for all review endpoints in tests/integration/review_api_integration_test.go
+- [ ] T015 [P] [US2] Contract test for all protected API endpoints in tests/contract/
+- [ ] T016 [P] [US2] Integration test for complete API workflow in tests/integration/api_integration_test.go
 
 ### Implementation for User Story 2
 
-- [X] T023 [P] [US2] Create test data generator for API testing in tests/testutils/test_data.go
-- [X] T024 [US2] Implement user API endpoints test with Facebook JWT in tests/integration/api_integration_test.go
-- [X] T025 [US2] Implement admin API endpoints test with Facebook JWT in tests/integration/api_integration_test.go
-- [X] T026 [US2] Implement organizer API endpoints test with Facebook JWT in tests/integration/api_integration_test.go
-- [X] T027 [US2] Implement review API endpoints test with Facebook JWT in tests/integration/api_integration_test.go
-- [X] T028 [US2] Add test for permission checking of different user roles in tests/integration/api_integration_test.go
-- [X] T029 [US2] Add test for expired JWT token handling in tests/integration/api_integration_test.go
+- [ ] T017 [P] [US2] Create API test utilities in tests/testutils/api_helpers.go
+- [ ] T018 [P] [US2] Create JWT test helpers in tests/testutils/jwt_validator.go
+- [ ] [US2] Implement comprehensive API endpoint testing in tests/e2e/fb_login_e2e_test.go
+- [ ] [US2] Add authentication validation to all protected routes
+- [ ] [US2] Create test data setup utilities in tests/testutils/test_data.go
+- [ ] [US2] Add performance testing for API response times
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
@@ -103,24 +102,23 @@ description: "Task list for Facebook login and API test suite implementation"
 
 ## Phase 5: User Story 3 - 本地環境測試設置 (Priority: P3)
 
-**Goal**: 在本地開發環境中，需要有一套完整的測試設置，讓開發者能夠輕鬆執行 Facebook 登入和 API 測試，確保測試環境與生產環境的一致性。
+**Goal**: 建立完整的本地測試環境，確保測試的可靠性和可重複性
 
-**Independent Test**: 可以在乾淨的本地環境中設置和運行測試套件，驗證測試環境的完整性和可用性。
+**Independent Test**: 可以在乾淨的本地環境中設置和運行測試套件，驗證測試環境的完整性和可用性
 
-### Tests for User Story 3 (REQUIRED - based on spec) ⚠️
+### Tests for User Story 3 (OPTIONAL - only if tests requested) ⚠️
 
-- [X] T030 [P] [US3] Test environment setup validation in tests/e2e/env_setup_test.go
-- [X] T031 [P] [US3] Test suite execution validation in tests/e2e/test_suite_validation_test.go
-- [X] T032 [P] [US3] Performance test for complete flow in tests/performance/fb_login_performance_test.go
+- [ ] T019 [P] [US3] Test environment setup validation in tests/e2e/env_setup_test.go
+- [ ] T020 [P] [US3] Test suite execution validation in tests/e2e/test_suite_validation_test.go
 
 ### Implementation for User Story 3
 
-- [X] T033 [P] [US3] Create test setup script in scripts/test_setup.sh
-- [X] T034 [US3] Implement complete test suite runner in tests/e2e/complete_flow_test.go
-- [X] T035 [US3] Add test result reporting mechanism in tests/testutils/result_reporter.go
-- [X] T036 [US3] Add test timeout and cleanup in tests/testutils/test_cleanup.go
-- [X] T037 [US3] Create README for local test execution in tests/README.md
-- [X] T038 [US3] Add test environment validation in tests/e2e/env_setup_test.go
+- [ ] T021 [P] [US3] Create local environment setup script in scripts/
+- [ ] T022 [P] [US3] Create test configuration for local environment
+- [ ] [US3] Implement test cleanup utilities in tests/testutils/test_cleanup.go
+- [ ] [US3] Create comprehensive test documentation in docs/
+- [ ] [US3] Add test result reporting utilities in tests/testutils/result_reporter.go
+- [ ] [US3] Implement test data isolation and cleanup mechanisms
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -130,12 +128,13 @@ description: "Task list for Facebook login and API test suite implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [X] T039 [P] Documentation updates for test setup in tests/README.md
-- [X] T040 Code cleanup and refactoring across test files
-- [X] T041 Performance optimization for test execution
-- [X] T042 [P] Additional edge case tests in tests/e2e/edge_case_test.go
-- [X] T043 Security validation tests for JWT and OAuth tokens
-- [X] T044 Run quickstart.md validation for complete test suite
+- [ ] T023 [P] Documentation updates in docs/
+- [ ] T024 Code cleanup and refactoring
+- [ ] T025 Performance optimization across all stories
+- [ ] T026 [P] Additional unit tests (if requested) in tests/unit/
+- [ ] T027 Security hardening for OAuth and JWT handling
+- [ ] T028 Run quickstart.md validation
+- [ ] T029 Update API documentation with OAuth endpoints
 
 ---
 
@@ -153,7 +152,7 @@ description: "Task list for Facebook login and API test suite implementation"
 ### User Story Dependencies
 
 - **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
-- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - Depends on US1 (needs Facebook login to get JWT token)
+- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - May integrate with US1 but should be independently testable
 - **User Story 3 (P3)**: Can start after Foundational (Phase 2) - May integrate with US1/US2 but should be independently testable
 
 ### Within Each User Story
@@ -178,13 +177,13 @@ description: "Task list for Facebook login and API test suite implementation"
 ## Parallel Example: User Story 1
 
 ```bash
-# Launch all tests for User Story 1 together:
-Task: "Contract test for Facebook OAuth endpoints in tests/contract/test_fb_oauth_contract.go"
+# Launch all tests for User Story 1 together (if tests requested):
+Task: "Contract test for Facebook OAuth endpoints in tests/contract/oauth_endpoints_contract.go"
 Task: "Integration test for Facebook OAuth flow in tests/integration/fb_auth_integration_test.go"
-Task: "Unit test for JWT token generation in tests/unit/jwt_token_test.go"
 
-# Launch all helpers for User Story 1 together:
-Task: "Create Facebook OAuth test helpers in tests/testutils/fb_test_helpers.go"
+# Launch all models for User Story 1 together:
+Task: "Create Facebook OAuth handler in handlers/auth_handlers.go"
+Task: "Create JWT token generation utility in utils/"
 ```
 
 ---
@@ -214,7 +213,7 @@ With multiple developers:
 1. Team completes Setup + Foundational together
 2. Once Foundational is done:
    - Developer A: User Story 1
-   - Developer B: User Story 2 (after US1 foundation)
+   - Developer B: User Story 2
    - Developer C: User Story 3
 3. Stories complete and integrate independently
 
