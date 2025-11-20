@@ -30,7 +30,7 @@ func TestOrganizerEndpointsWithFacebookJWT(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 
-	jwtToken, err := testutils.CreateMockJWTToken(user.ID, user.Name, user.IsAdmin)
+	jwtToken, err := testutils.CreateMockJWTToken(uint(user.ID), user.Name, user.IsAdmin)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, jwtToken)
 
@@ -82,7 +82,7 @@ func TestOrganizerEndpointsAuthorization(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 
-	jwtToken, err := testutils.CreateMockJWTToken(user.ID, user.Name, user.IsAdmin)
+	jwtToken, err := testutils.CreateMockJWTToken(uint(user.ID), user.Name, user.IsAdmin)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, jwtToken)
 
@@ -129,7 +129,7 @@ func TestOrganizerEndpointsResponseFormat(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 
-	jwtToken, err := testutils.CreateMockJWTToken(user.ID, user.Name, user.IsAdmin)
+	jwtToken, err := testutils.CreateMockJWTToken(uint(user.ID), user.Name, user.IsAdmin)
 	assert.NoError(t, err)
 
 	t.Run("Organizer approve response format", func(t *testing.T) {
@@ -179,7 +179,7 @@ func TestOrganizerActionsOnMatches(t *testing.T) {
 	result := testServer.DB.Create(adminUser)
 	assert.NoError(t, result.Error)
 
-	adminToken, err := testutils.CreateMockJWTToken(adminUser.ID, adminUser.Name, adminUser.IsAdmin)
+	adminToken, err := testutils.CreateMockJWTToken(uint(adminUser.ID), adminUser.Name, adminUser.IsAdmin)
 	assert.NoError(t, err)
 
 	// Create a test location using admin privileges
@@ -209,7 +209,7 @@ func TestOrganizerActionsOnMatches(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, organizerUser)
 
-	organizerToken, err := testutils.CreateMockJWTToken(organizerUser.ID, organizerUser.Name, organizerUser.IsAdmin)
+	organizerToken, err := testutils.CreateMockJWTToken(uint(organizerUser.ID), organizerUser.Name, organizerUser.IsAdmin)
 	assert.NoError(t, err)
 
 	// In a real scenario, we would create a match where organizerUser is the organizer

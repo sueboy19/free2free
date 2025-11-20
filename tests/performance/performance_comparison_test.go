@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 	"free2free/models"
 	"free2free/tests/testutils"
+
+	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
 )
 
 // TestPerformanceComparison tests performance comparison between implementations
@@ -24,10 +25,10 @@ func TestPerformanceComparison(t *testing.T) {
 		// Measure create operation performance
 		startTime := time.Now()
 		user := &models.User{
-			Name:       "Perf Test User",
-			Email:      "perf@example.com",
-			Provider:   "facebook",
-			ProviderID: "perf_123",
+			Name:           "Perf Test User",
+			Email:          "perf@example.com",
+			SocialID:       "perf_123",
+			SocialProvider: "facebook",
 		}
 		result := db.Create(user)
 		createDuration := time.Since(startTime)
@@ -84,10 +85,10 @@ func TestPerformanceComparison(t *testing.T) {
 		users := make([]*models.User, 100)
 		for i := 0; i < 100; i++ {
 			users[i] = &models.User{
-				Name:       "Batch User " + string(rune('0'+i)),
-				Email:      "batch" + string(rune('0'+i)) + "@example.com",
-				Provider:   "facebook",
-				ProviderID: "batch_" + string(rune('0'+i)),
+				Name:           "Batch User " + string(rune('0'+i)),
+				Email:          "batch" + string(rune('0'+i)) + "@example.com",
+				SocialID:       "batch_" + string(rune('0'+i)),
+				SocialProvider: "facebook",
 			}
 		}
 
@@ -149,6 +150,17 @@ func TestPerformanceComparison(t *testing.T) {
 		// Measure transaction performance with multiple operations
 		startTime := time.Now()
 		err = db.Transaction(func(tx *gorm.DB) error {
+			// Create a user first
+			user := &models.User{
+				Name:           "Transaction Perf Test User",
+				Email:          "txperf@example.com",
+				SocialID:       "txperf_456",
+				SocialProvider: "facebook",
+			}
+			result := tx.Create(user)
+			assert.NoError(t, result.Error)
+			assert.NotZero(t, user.ID)
+
 			// Create a location
 			location := &models.Location{
 				Name:      "Transaction Perf Test Location",
@@ -156,7 +168,7 @@ func TestPerformanceComparison(t *testing.T) {
 				Latitude:  25.0,
 				Longitude: 121.0,
 			}
-			result := tx.Create(location)
+			result = tx.Create(location)
 			assert.NoError(t, result.Error)
 			assert.NotZero(t, location.ID)
 
@@ -164,23 +176,13 @@ func TestPerformanceComparison(t *testing.T) {
 			activity := &models.Activity{
 				Title:       "Transaction Perf Test Activity",
 				Description: "Activity for transaction performance test",
-				Status:      "pending",
+				TargetCount: 2,
 				LocationID:  location.ID,
+				CreatedBy:   user.ID,
 			}
 			result = tx.Create(activity)
 			assert.NoError(t, result.Error)
 			assert.NotZero(t, activity.ID)
-
-			// Create a user
-			user := &models.User{
-				Name:       "Transaction Perf Test User",
-				Email:      "txperf@example.com",
-				Provider:   "facebook",
-				ProviderID: "txperf_456",
-			}
-			result = tx.Create(user)
-			assert.NoError(t, result.Error)
-			assert.NotZero(t, user.ID)
 
 			return nil // Commit transaction
 		})
@@ -206,10 +208,10 @@ func TestPerformanceComparison(t *testing.T) {
 		// Create test data
 		for i := 0; i < 50; i++ {
 			user := &models.User{
-				Name:       "Query Perf Test User " + string(rune('0'+(i%10))),
-				Email:      "queryperf" + string(rune('0'+i)) + "@example.com",
-				Provider:   "facebook",
-				ProviderID: "qperf_" + string(rune('0'+i)),
+				Name:           "Query Perf Test User " + string(rune('0'+(i%10))),
+				Email:          "queryperf" + string(rune('0'+i)) + "@example.com",
+				SocialID:       "qperf_" + string(rune('0'+i)),
+				SocialProvider: "facebook",
 			}
 			result := db.Create(user)
 			assert.NoError(t, result.Error)
@@ -219,7 +221,7 @@ func TestPerformanceComparison(t *testing.T) {
 		// Measure complex query performance
 		startTime := time.Now()
 		var facebookUsers []models.User
-		result := db.Where("provider = ?", "facebook").Order("name ASC").Find(&facebookUsers)
+		result := db.Where("social_provider = ?", "facebook").Order("name ASC").Find(&facebookUsers)
 		queryDuration := time.Since(startTime)
 
 		assert.NoError(t, result.Error)
@@ -231,7 +233,7 @@ func TestPerformanceComparison(t *testing.T) {
 			UserID   uint
 			UserName string
 		}
-		result = db.Raw("SELECT id as user_id, name as user_name FROM users WHERE provider = ? ORDER BY name", "facebook").Scan(&joinedResults)
+		result = db.Raw("SELECT id as user_id, name as user_name FROM users WHERE social_provider = ? ORDER BY name", "facebook").Scan(&joinedResults)
 		joinQueryDuration := time.Since(startTime)
 
 		assert.NoError(t, result.Error)
@@ -268,10 +270,10 @@ func TestPerformanceComparison(t *testing.T) {
 				defer wg.Done()
 				for j := 0; j < operationsPerGoroutine; j++ {
 					user := &models.User{
-						Name:       "Concurrent User " + string(rune('0'+goroutineID)) + "-" + string(rune('0'+j)),
-						Email:      "conc" + string(rune('0'+goroutineID)) + "-" + string(rune('0'+j)) + "@example.com",
-						Provider:   "facebook",
-						ProviderID: "conc_" + string(rune('0'+goroutineID)) + "_" + string(rune('0'+j)),
+						Name:           "Concurrent User " + string(rune('0'+goroutineID)) + "-" + string(rune('0'+j)),
+						Email:          "conc" + string(rune('0'+goroutineID)) + "-" + string(rune('0'+j)) + "@example.com",
+						SocialID:       "conc_" + string(rune('0'+goroutineID)) + "_" + string(rune('0'+j)),
+						SocialProvider: "facebook",
 					}
 					result := db.Create(user)
 					assert.NoError(t, result.Error)
@@ -295,7 +297,7 @@ func TestPerformanceComparison(t *testing.T) {
 
 		// Log concurrent performance
 		t.Logf("Concurrent Operation Performance:")
-		t.Logf("  %d goroutines x %d operations each = %d operations total: %v", 
+		t.Logf("  %d goroutines x %d operations each = %d operations total: %v",
 			numGoroutines, operationsPerGoroutine, numGoroutines*operationsPerGoroutine, concurrentDuration)
 
 		// Verify concurrent performance is within acceptable limits
@@ -311,7 +313,7 @@ func TestPerformanceComparison(t *testing.T) {
 
 		// Create a moderate amount of data to measure memory usage
 		const numRecords = 1000
-		
+
 		// Measure memory before operations
 		var memStatsBefore runtime.MemStats
 		runtime.ReadMemStats(&memStatsBefore)
@@ -319,10 +321,10 @@ func TestPerformanceComparison(t *testing.T) {
 		// Create records
 		for i := 0; i < numRecords; i++ {
 			user := &models.User{
-				Name:       "Memory Test User " + string(rune('0'+(i%100))),
-				Email:      "memtest" + string(rune('0'+i)) + "@example.com",
-				Provider:   "facebook",
-				ProviderID: "memtest_" + string(rune('0'+i)),
+				Name:           "Memory Test User " + string(rune('0'+(i%100))),
+				Email:          "memtest" + string(rune('0'+i)) + "@example.com",
+				SocialID:       "memtest_" + string(rune('0'+i)),
+				SocialProvider: "facebook",
 			}
 			result := db.Create(user)
 			assert.NoError(t, result.Error)
@@ -352,7 +354,7 @@ func TestPerformanceComparison(t *testing.T) {
 		t.Logf("  Memory growth from read: %d KB", (memStatsAfterRead.Alloc-memStatsAfterCreate.Alloc)/1024)
 
 		// Verify memory usage is reasonable (less than 10MB growth for 1000 records)
-		assert.Less(t, memStatsAfterRead.Alloc-memStatsBefore.Alloc, uint64(10*1024*1024), 
+		assert.Less(t, memStatsAfterRead.Alloc-memStatsBefore.Alloc, uint64(10*1024*1024),
 			"Memory usage should grow less than 10MB for 1000 records")
 	})
 }

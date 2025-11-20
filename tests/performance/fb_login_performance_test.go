@@ -36,7 +36,13 @@ func TestFacebookLoginPerformance(t *testing.T) {
 		// Validate JWT token
 		claims, err := testutils.ValidateJWTToken(token)
 		assert.NoError(t, err)
-		assert.Equal(t, user.ID, claims.UserID)
+		// Convert to map[string]interface{} to access fields
+		if claimsMap, ok := claims.(map[string]interface{}); ok {
+			userID := int64(claimsMap["user_id"].(float64))
+			assert.Equal(t, user.ID, userID)
+		} else {
+			t.Fatalf("Expected claims to be map[string]interface{}, got %T", claims)
+		}
 
 		elapsed := time.Since(start)
 
@@ -68,7 +74,13 @@ func TestFacebookLoginPerformance(t *testing.T) {
 		validationTime := time.Since(start)
 
 		assert.NoError(t, err)
-		assert.Equal(t, user.ID, claims.UserID)
+		// Convert to map[string]interface{} to access fields
+		if claimsMap, ok := claims.(map[string]interface{}); ok {
+			userID := int64(claimsMap["user_id"].(float64))
+			assert.Equal(t, user.ID, userID)
+		} else {
+			t.Fatalf("Expected claims to be map[string]interface{}, got %T", claims)
+		}
 		assert.True(t, validationTime < 10*time.Millisecond, "JWT validation should complete in under 10ms, took %v", validationTime)
 
 		t.Logf("JWT validation completed in %v", validationTime)
@@ -125,7 +137,13 @@ func TestFacebookLoginPerformance(t *testing.T) {
 			// Validate JWT token
 			claims, err := testutils.ValidateJWTToken(token)
 			assert.NoError(t, err)
-			assert.Equal(t, user.ID, claims.UserID)
+			// Convert to map[string]interface{} to access fields
+			if claimsMap, ok := claims.(map[string]interface{}); ok {
+				userID := int64(claimsMap["user_id"].(float64))
+				assert.Equal(t, user.ID, userID)
+			} else {
+				t.Fatalf("Expected claims to be map[string]interface{}, got %T", claims)
+			}
 
 			testServer.Close()
 			elapsed := time.Since(start)

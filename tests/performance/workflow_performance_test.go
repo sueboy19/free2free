@@ -2,11 +2,11 @@ package performance
 
 import (
 	"net/http"
-	"sync"
 	"testing"
 	"time"
 
 	"free2free/tests/testutils"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )

@@ -3,9 +3,11 @@ package integration
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"free2free/models"
 	"free2free/tests/testutils"
+
+	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
 )
 
 // TestRegressionTesting tests for any regressions in database functionality
@@ -28,11 +30,11 @@ func TestRegressionTesting(t *testing.T) {
 		// Simulate a complete user flow that was working before
 		// 1. Create user
 		user := &models.User{
-			Name:       "Regression Test User",
-			Email:      "regression@example.com",
-			Provider:   "facebook",
-			ProviderID: "reg_123",
-			Avatar:     "https://example.com/regression_avatar.jpg",
+			Name:           "Regression Test User",
+			Email:          "regression@example.com",
+			SocialID:       "reg_123",
+			SocialProvider: "facebook",
+			AvatarURL:      "https://example.com/regression_avatar.jpg",
 		}
 		result := db.Create(user)
 		assert.NoError(t, result.Error)
@@ -53,15 +55,15 @@ func TestRegressionTesting(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Regression Test Activity",
 			Description: "Activity for regression testing",
-			Status:      "pending",
+			TargetCount: 2,
 			LocationID:  location.ID,
+			CreatedBy:   user.ID,
 		}
 		result = db.Create(activity)
 		assert.NoError(t, result.Error)
 		assert.NotZero(t, activity.ID)
 
-		// 4. Admin approves the activity
-		activity.Status = "approved"
+		// 4. Admin creates activity (no status field in Activity model)
 		result = db.Save(activity)
 		assert.NoError(t, result.Error)
 
@@ -77,6 +79,7 @@ func TestRegressionTesting(t *testing.T) {
 		// 6. Add user as participant
 		participant := &models.MatchParticipant{
 			MatchID: match.ID,
+			UserID:  user.ID,
 			Status:  "confirmed",
 		}
 		result = db.Create(participant)
@@ -89,9 +92,11 @@ func TestRegressionTesting(t *testing.T) {
 		assert.NoError(t, result.Error)
 
 		review := &models.Review{
-			MatchID: match.ID,
-			Score:   5,
-			Comment: "Great regression test experience!",
+			MatchID:    match.ID,
+			ReviewerID: user.ID,
+			RevieweeID: user.ID,
+			Score:      5,
+			Comment:    "Great regression test experience!",
 		}
 		result = db.Create(review)
 		assert.NoError(t, result.Error)
@@ -100,7 +105,8 @@ func TestRegressionTesting(t *testing.T) {
 		// 8. Someone likes the review
 		like := &models.ReviewLike{
 			ReviewID: review.ID,
-			Score:    1,
+			UserID:   user.ID,
+			IsLike:   true,
 		}
 		result = db.Create(like)
 		assert.NoError(t, result.Error)
@@ -108,17 +114,27 @@ func TestRegressionTesting(t *testing.T) {
 
 		// 9. Verify all relationships are maintained
 		var verifiedMatch models.Match
-		result = db.Preload("Participants").Preload("Activity").First(&verifiedMatch, match.ID)
+		result = db.Preload("Activity").First(&verifiedMatch, match.ID)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "completed", verifiedMatch.Status)
 		assert.Equal(t, "Regression Test Activity", verifiedMatch.Activity.Title)
-		assert.Equal(t, 1, len(verifiedMatch.Participants))
+
+		// Check participants separately
+		var participants []models.MatchParticipant
+		result = db.Where("match_id = ?", match.ID).Find(&participants)
+		assert.NoError(t, result.Error)
+		assert.Equal(t, 1, len(participants))
 
 		var verifiedReview models.Review
-		result = db.Preload("ReviewLikes").First(&verifiedReview, review.ID)
+		result = db.First(&verifiedReview, review.ID)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "Great regression test experience!", verifiedReview.Comment)
-		assert.Equal(t, 1, len(verifiedReview.ReviewLikes))
+
+		// Check review likes separately
+		var reviewLikes []models.ReviewLike
+		result = db.Where("review_id = ?", review.ID).Find(&reviewLikes)
+		assert.NoError(t, result.Error)
+		assert.Equal(t, 1, len(reviewLikes))
 	})
 
 	t.Run("Transaction Integrity Regression", func(t *testing.T) {
@@ -145,8 +161,9 @@ func TestRegressionTesting(t *testing.T) {
 			activity := &models.Activity{
 				Title:       "Transaction Test Activity",
 				Description: "Activity for transaction regression test",
-				Status:      "pending",
+				TargetCount: 2,
 				LocationID:  location.ID,
+				CreatedBy:   1, // Mock admin ID
 			}
 			result = tx.Create(activity)
 			assert.NoError(t, result.Error)
@@ -185,10 +202,10 @@ func TestRegressionTesting(t *testing.T) {
 
 		// Create multiple users for query testing
 		users := []models.User{
-			{Name: "Regression Alice", Email: "reg.alice@example.com", Provider: "facebook", ProviderID: "ra1"},
-			{Name: "Regression Bob", Email: "reg.bob@example.com", Provider: "instagram", ProviderID: "rb2"},
-			{Name: "Regression Charlie", Email: "reg.charlie@example.com", Provider: "facebook", ProviderID: "rc3"},
-			{Name: "Regression Diana", Email: "reg.diana@example.com", Provider: "facebook", ProviderID: "rd4"},
+			{Name: "Regression Alice", Email: "reg.alice@example.com", SocialProvider: "facebook", SocialID: "ra1"},
+			{Name: "Regression Bob", Email: "reg.bob@example.com", SocialProvider: "instagram", SocialID: "rb2"},
+			{Name: "Regression Charlie", Email: "reg.charlie@example.com", SocialProvider: "facebook", SocialID: "rc3"},
+			{Name: "Regression Diana", Email: "reg.diana@example.com", SocialProvider: "facebook", SocialID: "rd4"},
 		}
 
 		for _, user := range users {
@@ -199,7 +216,7 @@ func TestRegressionTesting(t *testing.T) {
 
 		// Test complex queries that should work as before
 		var facebookUsers []models.User
-		result := db.Where("provider = ?", "facebook").Order("name ASC").Find(&facebookUsers)
+		result := db.Where("social_provider = ?", "facebook").Order("name ASC").Find(&facebookUsers)
 		assert.NoError(t, result.Error)
 		assert.Equal(t, 3, len(facebookUsers))
 		assert.Equal(t, "Regression Alice", facebookUsers[0].Name)
@@ -231,11 +248,11 @@ func TestRegressionTesting(t *testing.T) {
 
 		// Insert data with all expected fields
 		user := &models.User{
-			Name:       "Migration Regression User",
-			Email:      "migreg@example.com",
-			Provider:   "facebook",
-			ProviderID: "migreg_789",
-			Avatar:     "https://example.com/migreg_avatar.jpg",
+			Name:           "Migration Regression User",
+			Email:          "migreg@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "migreg_789",
+			AvatarURL:      "https://example.com/migreg_avatar.jpg",
 		}
 		result := db.Create(user)
 		assert.NoError(t, result.Error)
@@ -247,9 +264,9 @@ func TestRegressionTesting(t *testing.T) {
 		assert.NoError(t, result.Error)
 		assert.Equal(t, "Migration Regression User", retrievedUser.Name)
 		assert.Equal(t, "migreg@example.com", retrievedUser.Email)
-		assert.Equal(t, "facebook", retrievedUser.Provider)
-		assert.Equal(t, "migreg_789", retrievedUser.ProviderID)
-		assert.Equal(t, "https://example.com/migreg_avatar.jpg", retrievedUser.Avatar)
+		assert.Equal(t, "facebook", retrievedUser.SocialProvider)
+		assert.Equal(t, "migreg_789", retrievedUser.SocialID)
+		assert.Equal(t, "https://example.com/migreg_avatar.jpg", retrievedUser.AvatarURL)
 
 		// Test updates work correctly
 		retrievedUser.Name = "Updated Migration Regression User"
@@ -273,7 +290,9 @@ func TestRegressionTesting(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Data Integrity Test Activity with Special Characters: !@#$%^&*()",
 			Description: "Testing data integrity with various characters and ensuring no data corruption: 0123456789, abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-			Status:      "pending",
+			TargetCount: 2,
+			LocationID:  1,
+			CreatedBy:   1,
 		}
 		result := db.Create(activity)
 		assert.NoError(t, result.Error)
@@ -285,7 +304,6 @@ func TestRegressionTesting(t *testing.T) {
 		assert.NoError(t, result.Error)
 		assert.Equal(t, activity.Title, retrievedActivity.Title)
 		assert.Equal(t, activity.Description, retrievedActivity.Description)
-		assert.Equal(t, activity.Status, retrievedActivity.Status)
 
 		// Test with longer text
 		longDescription := "Very long description. "
@@ -321,10 +339,10 @@ func TestRegressionTesting(t *testing.T) {
 		assert.NotZero(t, location.ID)
 
 		user := &models.User{
-			Name:       "Relationship Test User",
-			Email:      "reltest@example.com",
-			Provider:   "facebook",
-			ProviderID: "reltest_101",
+			Name:           "Relationship Test User",
+			Email:          "reltest@example.com",
+			SocialProvider: "facebook",
+			SocialID:       "reltest_101",
 		}
 		result = db.Create(user)
 		assert.NoError(t, result.Error)
@@ -333,8 +351,9 @@ func TestRegressionTesting(t *testing.T) {
 		activity := &models.Activity{
 			Title:       "Relationship Test Activity",
 			Description: "Activity to test relationship integrity",
-			Status:      "pending",
+			TargetCount: 2,
 			LocationID:  location.ID,
+			CreatedBy:   user.ID,
 		}
 		result = db.Create(activity)
 		assert.NoError(t, result.Error)
@@ -354,9 +373,9 @@ func TestRegressionTesting(t *testing.T) {
 
 		// Test joins
 		var joinedResults []struct {
-			ActivityID uint
-			Title      string
-			LocationID uint
+			ActivityID   uint
+			Title        string
+			LocationID   uint
 			LocationName string
 		}
 		result = db.Raw("SELECT a.id as activity_id, a.title, a.location_id, l.name as location_name FROM activities a JOIN locations l ON a.location_id = l.id WHERE a.id = ?", activity.ID).Scan(&joinedResults)
