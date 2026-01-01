@@ -2,8 +2,18 @@
 
 **Feature Branch**: `003-test-fix`  
 **Created**: 2025年11月9日  
-**Status**: Draft  
+**Status**: Draft
 **Input**: User description: "測試修正" (Fix test issues)
+
+## Clarifications
+
+### Session 2026-01-01
+
+- Q: 可觀測性需求 - 系統需要什麼級別的日誌、指標或追蹤？ → A: 無要求：依賴框架預設行為
+- Q: 錯誤處理策略 - FR-010 要求的「清晰且可操作的錯誤回饋」應使用什麼格式？ → A: 結構化 JSON：包含 error、code、可選的 details 欄位
+- Q: 會話過期處理 - FR-011 要求的會話狀態持續性應採用什麼過期策略？ → A: 固定過期：例如 24 小時後過期
+- Q: 並發限制策略 - 超過 FR-011 要求的 1000 並發請求限制時應如何處理？ → A: 拒絕請求：超過限制時返回 429 Too Many Requests
+- Q: 測試環境隔離 - 測試數據應如何與生產數據隔離？ → A: 記憶體資料庫：測試使用 SQLite 記憶體模式
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -84,20 +94,20 @@ As a user, I need the OAuth authentication flow to work correctly, so that I can
 - **FR-001**: System MUST handle user sessions securely and reliably during authentication
 - **FR-002**: System MUST provide all documented API functionality to users
 - **FR-003**: System MUST execute all quality assurance tests to ensure functionality
-- **FR-004**: System MUST validate user authentication tokens consistently
+- **FR-004**: System MUST validate user authentication tokens consistently. All token validation must follow consistent error handling and response patterns
 - **FR-005**: System MUST maintain consistent user data structures across all components
 - **FR-006**: System MUST establish user sessions correctly through OAuth providers
 - **FR-007**: System MUST validate user authentication status reliably
 - **FR-008**: System MUST maintain user session data properly across requests
 - **FR-009**: System MUST handle user data consistently across all system components
-- **FR-010**: System MUST provide clear and actionable feedback for authentication failures and errors
-- **FR-011**: System MUST maintain user session state across multiple interactions with session state persistence working across at least 1000 concurrent requests
-- **FR-004**: System MUST validate user authentication tokens consistently. All token validation must follow consistent error handling and response patterns
+- **FR-010**: System MUST provide clear and actionable feedback for authentication failures and errors using structured JSON format with error, code, and optional details fields
+- **FR-011**: System MUST maintain user session state across multiple interactions with session state persistence working across at least 1000 concurrent requests, using fixed expiration (24 hours) and rejecting requests with 429 status when exceeding concurrent limit
 
 ### Dependencies and Assumptions
 
 - **Dependency**: Properly configured system environment for authentication
 - **Dependency**: Consistent data structures across all system components
+- **Dependency**: Test environment uses SQLite in-memory database for complete data isolation
 - **Assumption**: Authentication tokens follow standard format expectations
 - **Assumption**: User sessions are properly initialized across the system
 - **Assumption**: All documented API functionality is available to users
