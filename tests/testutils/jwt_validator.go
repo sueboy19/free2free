@@ -1,7 +1,10 @@
 package testutils
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -183,4 +186,62 @@ func (m *MockJWTValidator) AddValidToken(token string, userID uint) {
 // AddInvalidToken adds an invalid token to the mock
 func (m *MockJWTValidator) AddInvalidToken(token string) {
 	m.InvalidTokens[token] = true
+}
+
+// TamperWithJWTToken modifies the payload of a JWT token for testing tampering detection
+func TamperWithJWTToken(tokenString string, modifications map[string]interface{}) (string, error) {
+	// JWT format: header.payload.signature
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid JWT format")
+	}
+
+	// Decode the payload (second part)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("failed to decode payload: %w", err)
+	}
+
+	// Parse the payload into a map
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	// Apply modifications
+	for key, value := range modifications {
+		claims[key] = value
+	}
+
+	// Marshal the modified claims
+	modifiedPayload, err := json.Marshal(claims)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal modified payload: %w", err)
+	}
+
+	// Encode the modified payload
+	encodedPayload := base64.RawURLEncoding.EncodeToString(modifiedPayload)
+
+	// Reassemble the token (keep original header and signature)
+	tamperedToken := parts[0] + "." + encodedPayload + "." + parts[2]
+
+	return tamperedToken, nil
+}
+
+// ValidateTokenSignature validates only the signature of a JWT token (without checking expiration)
+func ValidateTokenSignature(tokenString, secret string) (bool, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Validate the signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	}, jwt.WithoutClaimsValidation())
+
+	if err != nil {
+		return false, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	// Check if the signature is valid
+	return token.Valid, nil
 }

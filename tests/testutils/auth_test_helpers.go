@@ -2,6 +2,9 @@ package testutils
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -98,6 +101,8 @@ func CreateTestAuthRequest(method, url string, body interface{}, token string) (
 type MockAuthProvider struct {
 	ValidAuthCodes map[string]bool
 	ValidTokens    map[string]MockUser
+	StateManager   *OAuthStateManager
+	PKCEManager    *PKCEManager
 }
 
 // MockUser represents a user in the mock OAuth provider
@@ -114,6 +119,8 @@ func NewMockAuthProvider() *MockAuthProvider {
 	return &MockAuthProvider{
 		ValidAuthCodes: make(map[string]bool),
 		ValidTokens:    make(map[string]MockUser),
+		StateManager:   NewOAuthStateManager(),
+		PKCEManager:    NewPKCEManager(),
 	}
 }
 
@@ -121,6 +128,19 @@ func NewMockAuthProvider() *MockAuthProvider {
 func (m *MockAuthProvider) AddValidAuthCode(code string, user MockUser) {
 	m.ValidAuthCodes[code] = true
 	m.ValidTokens[code] = user
+}
+
+// AddValidAuthCodeWithStateAndPKCE adds a valid auth code with state and PKCE
+func (m *MockAuthProvider) AddValidAuthCodeWithStateAndPKCE(code string, user MockUser, state string, verifier string) {
+	m.ValidAuthCodes[code] = true
+	m.ValidTokens[code] = user
+	m.StateManager.ValidStates[state] = true
+	m.PKCEManager.Codes[code] = verifier
+}
+
+// ValidateState validates an OAuth state parameter
+func (m *MockAuthProvider) ValidateState(state string) bool {
+	return m.StateManager.ValidateState(state)
 }
 
 // ValidateAuthCode validates an authorization code and returns user info
@@ -258,14 +278,14 @@ func (a *AuthTestHelper) ValidateTokenWithTimeout(tokenString string, timeout ti
 // CreateTokenWithClaims creates a JWT token with the specified claims
 func CreateTokenWithClaims(claims map[string]interface{}, secret string) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims(claims))
-	
+
 	// Sign and get the complete encoded token as a string using the secret
 	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
 		// If there's an error, return an empty string
 		return ""
 	}
-	
+
 	return tokenString
 }
 
@@ -280,21 +300,21 @@ func CreateTokenWithCustomClaims(userID uint, email, name, role, secret string, 
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
 		"iat":     time.Now().Unix(),
 	}
-	
+
 	// Add custom claims
 	for key, value := range customClaims {
 		claims[key] = value
 	}
-	
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	
+
 	// Sign and get the complete encoded token as a string using the secret
 	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
 		// If there's an error, return an empty string
 		return ""
 	}
-	
+
 	return tokenString
 }
 
@@ -308,4 +328,81 @@ func CreateTestUser() *TestUser {
 		Role:     "user",
 		IsAdmin:  false,
 	}
+}
+
+// OAuthStateManager manages OAuth state parameters for CSRF protection
+type OAuthStateManager struct {
+	ValidStates map[string]bool
+}
+
+// NewOAuthStateManager creates a new OAuth state manager
+func NewOAuthStateManager() *OAuthStateManager {
+	return &OAuthStateManager{
+		ValidStates: make(map[string]bool),
+	}
+}
+
+// GenerateState generates a random state parameter for OAuth flow
+func (m *OAuthStateManager) GenerateState() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	state := base64.URLEncoding.EncodeToString(b)
+	m.ValidStates[state] = true
+	return state
+}
+
+// ValidateState validates an OAuth state parameter and returns true if valid
+func (m *OAuthStateManager) ValidateState(state string) bool {
+	valid, exists := m.ValidStates[state]
+	if exists {
+		delete(m.ValidStates, state) // Mark state as used (one-time use)
+	}
+	return valid
+}
+
+// PKCEManager manages PKCE (Proof Key for Code Exchange) for OAuth
+type PKCEManager struct {
+	Codes map[string]string
+}
+
+// NewPKCEManager creates a new PKCE manager
+func NewPKCEManager() *PKCEManager {
+	return &PKCEManager{
+		Codes: make(map[string]string),
+	}
+}
+
+// GenerateCodeChallenge generates a code verifier and challenge for PKCE
+func (m *PKCEManager) GenerateCodeChallenge() (verifier string, challenge string, err error) {
+	// Generate a random code verifier (43 bytes for URL-safe base64)
+	b := make([]byte, 32)
+	_, err = rand.Read(b)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+
+	// Create code verifier (base64url encoded)
+	verifier = base64.URLEncoding.EncodeToString(b)
+
+	// Create code challenge (SHA256 of verifier, base64url encoded)
+	hash := sha256.Sum256([]byte(verifier))
+	challenge = base64.URLEncoding.EncodeToString(hash[:])
+
+	return verifier, challenge, nil
+}
+
+// AddValidAuthCodeWithPKCE adds a valid auth code with PKCE verifier to PKCE manager
+func (m *PKCEManager) AddValidAuthCodeWithPKCE(code string, verifier string) {
+	m.Codes[code] = verifier
+}
+
+// ValidateCodeVerifier validates a PKCE code verifier
+func (m *PKCEManager) ValidateCodeVerifier(verifier string) bool {
+	for storedVerifier := range m.Codes {
+		if storedVerifier == verifier {
+			delete(m.Codes, verifier) // Mark as used (one-time use)
+			return true
+		}
+	}
+	return false
 }
