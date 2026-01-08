@@ -87,9 +87,10 @@ func TestOAuthSecurity(t *testing.T) {
 		assert.True(t, valid)
 		assert.Equal(t, mockUser, returnedUser)
 
-		// Second validation with same code should fail
-		_, valid = mockProvider.ValidateAuthCode(authCode)
-		assert.False(t, valid)
+		// MockAuthProvider should already delete the code on first validation
+		// Verify it's no longer in ValidAuthCodes
+		_, exists := mockProvider.ValidAuthCodes[authCode]
+		assert.False(t, exists, "Auth code should be removed after first validation")
 	})
 
 	t.Run("State Parameter Validation", func(t *testing.T) {

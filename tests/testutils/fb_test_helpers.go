@@ -48,7 +48,7 @@ func (fath *FacebookAuthTestHelper) SimulateFacebookCallback(code, state string)
 	return fath.Client.Do(req)
 }
 
-// GetFacebookAuthResponse extracts the response from Facebook OAuth callback
+// GetFacebookAuthResponse extracts the response from the Facebook OAuth callback
 func (fath *FacebookAuthTestHelper) GetFacebookAuthResponse(resp *http.Response) (map[string]interface{}, error) {
 	var authResponse map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&authResponse); err != nil {
@@ -66,7 +66,7 @@ func (fath *FacebookAuthTestHelper) GetFacebookAuthResponse(resp *http.Response)
 }
 
 // ParseAuthURL extracts the redirect URL from the initial auth request
-// This would point to Facebook's authentication page in real implementation
+// This would point to Facebook's authentication page in a real implementation
 func (fath *FacebookAuthTestHelper) ParseAuthURL(resp *http.Response) (string, error) {
 	// If the server redirects to Facebook, the Location header will contain the Facebook auth URL
 	location := resp.Header.Get("Location")
@@ -81,7 +81,7 @@ func (fath *FacebookAuthTestHelper) ParseAuthURL(resp *http.Response) (string, e
 // ValidateFacebookAuthSuccess validates that the Facebook auth was successful
 // and extracts the JWT token from the response
 func (fath *FacebookAuthTestHelper) ValidateFacebookAuthSuccess(response map[string]interface{}) (string, error) {
-	// Check if response contains access_token (JWT token in our implementation)
+	// Check if the response contains access_token (JWT token in our implementation)
 	if token, exists := response["access_token"]; exists {
 		if tokenStr, ok := token.(string); ok && tokenStr != "" {
 			return tokenStr, nil
@@ -103,19 +103,19 @@ func (fath *FacebookAuthTestHelper) ValidateFacebookAuthSuccess(response map[str
 
 // CheckFacebookAuthError checks if the Facebook auth resulted in an error
 func (fath *FacebookAuthTestHelper) CheckFacebookAuthError(resp *http.Response, response map[string]interface{}) (bool, string) {
-	// Check status code
+	// Check the status code
 	if resp.StatusCode >= 400 {
 		return true, fmt.Sprintf("HTTP error: %d", resp.StatusCode)
 	}
 
-	// Check if response contains error field
+	// Check if the response contains an error field
 	if errorField, exists := response["error"]; exists {
 		if errorStr, ok := errorField.(string); ok {
 			return true, errorStr
 		}
 	}
 
-	// Check if response contains error as a top-level string
+	// Check if the response contains error as a top-level string
 	if errorStr, ok := response["error"].(string); ok && errorStr != "" {
 		return true, errorStr
 	}
