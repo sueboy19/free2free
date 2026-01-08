@@ -362,13 +362,15 @@ func (m *OAuthStateManager) ValidateState(state string) bool {
 
 // PKCEManager manages PKCE (Proof Key for Code Exchange) for OAuth
 type PKCEManager struct {
-	Codes map[string]string
+	Codes     map[string]string // authCode -> verifier mapping
+	Verifiers map[string]bool   // valid verifiers tracking
 }
 
 // NewPKCEManager creates a new PKCE manager
 func NewPKCEManager() *PKCEManager {
 	return &PKCEManager{
-		Codes: make(map[string]string),
+		Codes:     make(map[string]string),
+		Verifiers: make(map[string]bool),
 	}
 }
 
@@ -394,15 +396,22 @@ func (m *PKCEManager) GenerateCodeChallenge() (verifier string, challenge string
 // AddValidAuthCodeWithPKCE adds a valid auth code with PKCE verifier to PKCE manager
 func (m *PKCEManager) AddValidAuthCodeWithPKCE(code string, verifier string) {
 	m.Codes[code] = verifier
+	m.Verifiers[verifier] = true
 }
 
 // ValidateCodeVerifier validates a PKCE code verifier
 func (m *PKCEManager) ValidateCodeVerifier(verifier string) bool {
-	for storedVerifier := range m.Codes {
-		if storedVerifier == verifier {
-			delete(m.Codes, verifier) // Mark as used (one-time use)
-			return true
+	_, exists := m.Verifiers[verifier]
+	if exists {
+		// Remove from both maps to ensure one-time use
+		delete(m.Verifiers, verifier)
+		// Also remove from Codes map if this verifier is associated with any authCode
+		for code, storedVerifier := range m.Codes {
+			if storedVerifier == verifier {
+				delete(m.Codes, code)
+			}
 		}
+		return true
 	}
 	return false
 }

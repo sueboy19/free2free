@@ -28,14 +28,14 @@ func TestSendError(t *testing.T) {
 			code:         http.StatusBadRequest,
 			message:      "無效的請求",
 			expectedCode: http.StatusBadRequest,
-			expectedBody: `{"error":"無效的請求","code":400}`,
+			expectedBody: `{"error":"無效的請求","code":400,"code_error":"INVALID_INPUT"}`,
 		},
 		{
 			name:         "內部伺服器錯誤",
 			code:         http.StatusInternalServerError,
 			message:      "伺服器錯誤",
 			expectedCode: http.StatusInternalServerError,
-			expectedBody: `{"error":"伺服器錯誤","code":500}`,
+			expectedBody: `{"error":"伺服器錯誤","code":500,"code_error":"INTERNAL_ERROR"}`,
 		},
 	}
 
@@ -65,11 +65,12 @@ func TestSendError(t *testing.T) {
 
 func TestErrorResponseStruct(t *testing.T) {
 	errResp := middleware.ErrorResponse{
-		Error: "測試錯誤",
-		Code:  400,
+		Error:     "測試錯誤",
+		Code:      400,
+		ErrorCode: "TEST_ERROR",
 	}
 
 	data, err := json.Marshal(errResp)
 	assert.NoError(t, err)
-	assert.Equal(t, `{"error":"測試錯誤","code":400}`, string(data))
+	assert.Equal(t, `{"error":"測試錯誤","code":400,"code_error":"TEST_ERROR"}`, string(data))
 }

@@ -9,22 +9,22 @@ import (
 	"free2free/tests/testutils"
 )
 
-// TestFacebookLoginPerformance tests the performance of the complete Facebook login flow
+// TestFacebookLoginPerformance 測試完整 Facebook 登入流程的性能
 func TestFacebookLoginPerformance(t *testing.T) {
-	t.Run("Facebook login to JWT token generation under 30 seconds", func(t *testing.T) {
+	t.Run("Facebook 登入到 JWT 生成在 30 秒內", func(t *testing.T) {
 		start := time.Now()
 
-		// Initialize test server
+		// 初始化測試伺服器
 		testServer := testutils.NewTestServer()
 		defer testServer.Close()
 
-		// Clear and setup database
+		// 清除並設定資料庫
 		err := testServer.ClearTestData()
-		assert.NoError(t, err, "Should clear test data successfully")
+		assert.NoError(t, err, "應該成功清除測試資料")
 		err = testServer.SetupTestDatabase()
-		assert.NoError(t, err, "Should setup test database successfully")
+		assert.NoError(t, err, "應該成功設定測試資料庫")
 
-		// Simulate Facebook login process (creating user and generating JWT)
+		// 模擬 Facebook 登入流程（建立使用者並生成 JWT）
 		user, err := testServer.CreateTestUser()
 		assert.NoError(t, err)
 		assert.NotNil(t, user)
@@ -33,30 +33,30 @@ func TestFacebookLoginPerformance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 
-		// Validate JWT token - just check if it validates successfully
+		// 驗證 JWT token - 只檢查是否成功驗證
 		_, err = testutils.ValidateJWTToken(token)
 		assert.NoError(t, err)
 
 		elapsed := time.Since(start)
 
-		// According to requirements in plan.md: "Facebook OAuth flow completed in under 30 seconds"
-		assert.True(t, elapsed < 30*time.Second, "Facebook login flow should complete in under 30 seconds, took %v", elapsed)
+		// 根據 plan.md 中的需求："Facebook OAuth flow completed in under 30 seconds"
+		assert.True(t, elapsed < 30*time.Second, "Facebook 登入流程應該在 30 秒內完成，耗時 %v", elapsed)
 
-		t.Logf("Facebook login flow completed in %v", elapsed)
+		t.Logf("Facebook 登入流程在 %v 內完成", elapsed)
 	})
 
-	t.Run("JWT token validation under 10ms", func(t *testing.T) {
-		// Initialize test server
+	t.Run("JWT token 驗證在 10ms 內", func(t *testing.T) {
+		// 初始化測試伺服器
 		testServer := testutils.NewTestServer()
 		defer testServer.Close()
 
-		// Clear and setup database
+		// 清除並設定資料庫
 		err := testServer.ClearTestData()
 		assert.NoError(t, err)
 		err = testServer.SetupTestDatabase()
 		assert.NoError(t, err)
 
-		// Create user and JWT token
+		// 建立使用者和 JWT token
 		user, err := testServer.CreateTestUser()
 		assert.NoError(t, err)
 		token, err := testutils.CreateMockJWTToken(user.ID, user.Name, user.IsAdmin)
@@ -67,23 +67,23 @@ func TestFacebookLoginPerformance(t *testing.T) {
 		validationTime := time.Since(start)
 
 		assert.NoError(t, err)
-		assert.True(t, validationTime < 10*time.Millisecond, "JWT validation should complete in under 10ms, took %v", validationTime)
+		assert.True(t, validationTime < 10*time.Millisecond, "JWT 驗證應該在 10ms 內完成，耗時 %v", validationTime)
 
-		t.Logf("JWT validation completed in %v", validationTime)
+		t.Logf("JWT 驗證在 %v 內完成", validationTime)
 	})
 
-	t.Run("API request with JWT under 500ms", func(t *testing.T) {
-		// Initialize test server
+	t.Run("使用 JWT 的 API 請求在 500ms 內", func(t *testing.T) {
+		// 初始化測試伺服器
 		testServer := testutils.NewTestServer()
 		defer testServer.Close()
 
-		// Clear and setup database
+		// 清除並設定資料庫
 		err := testServer.ClearTestData()
 		assert.NoError(t, err)
 		err = testServer.SetupTestDatabase()
 		assert.NoError(t, err)
 
-		// Create user and JWT token
+		// 建立使用者和 JWT token
 		user, err := testServer.CreateTestUser()
 		assert.NoError(t, err)
 		token, err := testutils.CreateMockJWTToken(user.ID, user.Name, user.IsAdmin)
@@ -94,17 +94,17 @@ func TestFacebookLoginPerformance(t *testing.T) {
 		requestTime := time.Since(start)
 
 		assert.NoError(t, err)
-		// May get 200 or 404 depending on implementation, but not a performance issue
+		// 根據實作可能得到 200 或 404，但不是性能問題
 		assert.Contains(t, []int{200, 404}, resp.StatusCode)
-		assert.True(t, requestTime < 500*time.Millisecond, "API request should complete in under 500ms, took %v", requestTime)
+		assert.True(t, requestTime < 500*time.Millisecond, "API 請求應該在 500ms 內完成，耗時 %v", requestTime)
 
 		resp.Body.Close()
-		t.Logf("API request with JWT completed in %v", requestTime)
+		t.Logf("使用 JWT 的 API 請求在 %v 內完成", requestTime)
 	})
 
-	t.Run("Multiple concurrent Facebook login simulations", func(t *testing.T) {
-		// Test performance under simulated load of multiple users logging in
-		// This is a simplified version - in real systems you'd use actual concurrency
+	t.Run("多次並發 Facebook 登入模擬", func(t *testing.T) {
+		// 測試在多個使用者登入的模擬負載下的性能
+		// 這是一個簡化版本 - 在實際系統中會使用實際的並發性
 
 		const numSimulations = 5
 		var totalElapsed time.Duration
@@ -114,13 +114,13 @@ func TestFacebookLoginPerformance(t *testing.T) {
 
 			testServer := testutils.NewTestServer()
 
-			// Create user and JWT token
+			// 建立使用者和 JWT token
 			user, err := testServer.CreateTestUser()
 			assert.NoError(t, err)
 			token, err := testutils.CreateMockJWTToken(user.ID, user.Name, user.IsAdmin)
 			assert.NoError(t, err)
 
-			// Validate JWT token
+			// 驗證 JWT token
 			_, err = testutils.ValidateJWTToken(token)
 			assert.NoError(t, err)
 
@@ -130,27 +130,27 @@ func TestFacebookLoginPerformance(t *testing.T) {
 		}
 
 		avgTime := totalElapsed / numSimulations
-		maxAllowedAvg := 30 * time.Second // Adjust based on requirements
-		assert.True(t, avgTime < maxAllowedAvg, "Average Facebook login flow should complete in under %v, took %v", maxAllowedAvg, avgTime)
+		maxAllowedAvg := 30 * time.Second // 根據需求調整
+		assert.True(t, avgTime < maxAllowedAvg, "平均 Facebook 登入流程應該在 %v 內完成，耗時 %v", maxAllowedAvg, avgTime)
 
-		t.Logf("Average Facebook login flow completed in %v across %d simulations", avgTime, numSimulations)
+		t.Logf("平均 Facebook 登入流程在 %v 內完成，共 %d 次模擬", avgTime, numSimulations)
 	})
 }
 
-// TestSystemPerformanceUnderLoad tests the system performance under load conditions
+// TestSystemPerformanceUnderLoad 測試系統在負載條件下的性能
 func TestSystemPerformanceUnderLoad(t *testing.T) {
-	t.Run("JWT token generation performance", func(t *testing.T) {
-		// Initialize test server
+	t.Run("JWT token 生成性能", func(t *testing.T) {
+		// 初始化測試伺服器
 		testServer := testutils.NewTestServer()
 		defer testServer.Close()
 
-		// Clear and setup database
+		// 清除並設定資料庫
 		err := testServer.ClearTestData()
 		assert.NoError(t, err)
 		err = testServer.SetupTestDatabase()
 		assert.NoError(t, err)
 
-		// Create user
+		// 建立使用者
 		user, err := testServer.CreateTestUser()
 		assert.NoError(t, err)
 
@@ -168,32 +168,32 @@ func TestSystemPerformanceUnderLoad(t *testing.T) {
 		}
 
 		avgGenTime := totalGenTime / numTokens
-		// JWT generation should be fast
-		assert.True(t, avgGenTime < 10*time.Millisecond, "JWT generation should complete in under 10ms, took %v on average", avgGenTime)
+		// JWT 生成應該很快
+		assert.True(t, avgGenTime < 10*time.Millisecond, "JWT 生成應該在 10ms 內完成，平均耗時 %v", avgGenTime)
 
-		t.Logf("JWT generation completed in average of %v", avgGenTime)
+		t.Logf("JWT 生成平均耗時 %v", avgGenTime)
 	})
 
-	t.Run("Database operations performance", func(t *testing.T) {
-		// Initialize test server
+	t.Run("資料庫操作性能", func(t *testing.T) {
+		// 初始化測試伺服器
 		testServer := testutils.NewTestServer()
 		defer testServer.Close()
 
-		// Clear and setup database
+		// 清除並設定資料庫
 		err := testServer.ClearTestData()
 		assert.NoError(t, err)
 		err = testServer.SetupTestDatabase()
 		assert.NoError(t, err)
 
-		// Test user creation performance
+		// 測試使用者建立性能
 		start := time.Now()
 		user, err := testServer.CreateTestUser()
 		creationTime := time.Since(start)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, user)
-		assert.True(t, creationTime < 100*time.Millisecond, "User creation should complete in under 100ms, took %v", creationTime)
+		assert.True(t, creationTime < 100*time.Millisecond, "使用者建立應該在 100ms 內完成，耗時 %v", creationTime)
 
-		t.Logf("User creation completed in %v", creationTime)
+		t.Logf("使用者建立在 %v 內完成", creationTime)
 	})
 }

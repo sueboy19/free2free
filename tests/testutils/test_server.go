@@ -74,36 +74,36 @@ func RegisterTestRoutes(r *gin.Engine) {
 	r.GET("/logout", mockLogout)
 	r.GET("/auth/token", mockExchangeToken)
 	r.POST("/auth/refresh", mockRefreshToken)
-	
+
 	// Profile route
 	r.GET("/profile", mockProfile)
-	
+
 	// Administrative routes
 	r.GET("/admin/activities", mockAdminActivities)
 	r.PUT("/admin/activities/:id/approve", mockApproveActivity)
 	r.PUT("/admin/activities/:id/reject", mockRejectActivity)
 	r.GET("/admin/users", mockAdminUsers)
-	
+
 	// User routes
 	r.GET("/user/matches", mockUserMatches)
 	r.GET("/user/past-matches", mockUserPastMatches)
-	
+
 	// Activity routes
 	r.POST("/api/activities", mockCreateActivity)
 	r.GET("/api/activities/:id", mockGetActivity)
 	r.PUT("/api/activities/:id", mockUpdateActivity)
-	
+
 	// Organizer routes
 	r.PUT("/organizer/approve-participant/:id", mockApproveParticipant)
 	r.PUT("/organizer/reject-participant/:id", mockRejectParticipant)
-	
+
 	// Review routes
 	r.POST("/review/create", mockCreateReview)
-	
+
 	// Review like routes
 	r.POST("/review-like/:reviewId/like", mockLikeReview)
 	r.POST("/review-like/:reviewId/dislike", mockDislikeReview)
-	
+
 	// Add a catch-all route for any undefined endpoints during testing
 	r.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "endpoint not found"})
@@ -116,6 +116,22 @@ func mockOauthBegin(c *gin.Context) {
 }
 
 func mockOauthCallback(c *gin.Context) {
+	// Check for required parameters
+	code := c.Query("code")
+	state := c.Query("state")
+
+	if code == "" && state == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing required parameters"})
+		return
+	}
+
+	// If parameters are missing, return error
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing code parameter"})
+		return
+	}
+
+	// Otherwise, simulate successful callback
 	c.JSON(http.StatusOK, gin.H{"message": "OAuth callback", "provider": c.Param("provider")})
 }
 
@@ -124,6 +140,15 @@ func mockLogout(c *gin.Context) {
 }
 
 func mockExchangeToken(c *gin.Context) {
+	// Check for session cookie
+	_, err := c.Cookie("session")
+	if err != nil {
+		// Return 401 Unauthorized for missing session (realistic behavior)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no session found"})
+		return
+	}
+
+	// Session exists, return token
 	c.JSON(http.StatusOK, gin.H{"token": "mock-jwt-token", "user": gin.H{"id": 1, "email": "test@example.com", "name": "Test User"}})
 }
 
@@ -132,6 +157,28 @@ func mockRefreshToken(c *gin.Context) {
 }
 
 func mockProfile(c *gin.Context) {
+	// Check for Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing authorization header"})
+		return
+	}
+
+	// Check if token starts with "Bearer "
+	if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
+		return
+	}
+
+	token := authHeader[7:]
+
+	// Check if token is obviously invalid
+	if token == "invalid.token.here" || token == "invalid.token" || token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		return
+	}
+
+	// Token looks valid (for testing purposes)
 	c.JSON(http.StatusOK, gin.H{"id": 1, "email": "test@example.com", "name": "Test User", "provider": "facebook", "avatar": "https://example.com/avatar.jpg"})
 }
 
@@ -239,17 +286,17 @@ func (ts *TestServer) GetURL(endpoint string) string {
 // DoRequest sends an HTTP request to the test server
 func (ts *TestServer) DoRequest(method, endpoint string, headers map[string]string, body []byte) (*http.Response, error) {
 	client := &http.Client{}
-	
+
 	url := ts.GetURL(endpoint)
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Add headers
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
-	
+
 	return client.Do(req)
 }
