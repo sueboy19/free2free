@@ -1,7 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Skill(glm-plan-usage:usage-query-skill)"
+      "Skill(glm-plan-usage:usage-query-skill)",
+      "Bash(curl:*)",
+      "Bash(npm run dev)",
+      "Bash(go run:*)",
+      "Bash(go build:*)",
+      "Bash(.free2free.exe)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd:*)",
+      "Bash(test:*)"
     ]
   }
 }
