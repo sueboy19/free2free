@@ -79,6 +79,15 @@ BASE_URL=http://localhost:8080
 
 # Cookie 安全性（使用 HTTPS 時設為 true）
 SECURE_COOKIE=false
+
+# 資料庫自動遷移（開發時建議設為 true）
+AUTO_MIGRATE=true
+
+# 前端 URL（CORS 設定用）
+FRONTEND_URL=http://localhost:3000
+
+# Gin 執行模式（debug/release）
+#GIN_MODE=release
 ```
 
 **注意**：此時 `BASE_URL` 設為 `http://localhost:8080`，稍後在取得 HTTPS URL 後需要更新。
@@ -187,6 +196,11 @@ ngrok http 8080
 ```bash
 docker-compose up -d
 ```
+
+**注意**：
+- 服務名稱為 `mariadb`，容器名稱為 `free2free-mariadb`
+- 開發環境使用 `localhost` 連線（透過連接埠轉發 `3306:3306`）
+- Staging 環境使用 `mariadb` 連線（Docker 內部網路）
 
 ### 4.2 驗證資料庫
 

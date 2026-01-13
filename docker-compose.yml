@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  mysql:
+  mariadb:
     image: mariadb:latest
     container_name: free2free-mariadb
     restart: always
