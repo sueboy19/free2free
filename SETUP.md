@@ -263,6 +263,11 @@ npm run dev
 
 前端會運行在 `http://localhost:3000`（或 Vite 分配的連接埠）。
 
+#### 如果有 build
+```
+npx serve dist/
+```
+
 ### 5.3 設定 VS Code Port Forwarding
 
 如果還沒設定，參考步驟三中的說明。
