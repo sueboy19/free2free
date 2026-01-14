@@ -119,6 +119,22 @@ VITE_APP_VERSION=1.0.0
 
 **重要**：Facebook 要求回調 URL 必須是 HTTPS。我們使用 VS Code Port Forwarding 來取得 HTTPS URL。
 
+#### 在 【使用案例】>【自訂】> 【Facebook 登入】> 設定 
+【有效的 Oauth 重新導向 URI】 裡面設定  
+```
+https://36pdmllw-8080.asse.devtunnels.ms/auth/facebook/callback
+```
+設定完後，記得最底下存檔  
+
+##### **用戶端 OAuth 設定:**
+- 確認「有效的 OAuth 重新導向 URI」啟用
+- 確認「用戶端 OAuth 設定」啟用
+
+##### **用戶端 OAuth 進階設定:**
+- **Use Strict Mode for Redirect URIs**: 設為 **OFF**
+- **Force Web OAuth Reauthentication**: 設為 **OFF**
+- **Login URIs**: 包含前端網址
+
 #### 選項 A：使用 VS Code Port Forwarding（推薦）
 
 **步驟 1：啟動後端**
@@ -140,7 +156,7 @@ go run main.go
 
 **步驟 3：更新 Facebook 應用程式**
 1. 在 Facebook Developers，進入您的應用程式
-2. 前往「應用程式設定」→「Facebook 登入」→「設定」
+2. 前往【使用案例】>【自訂】> 【Facebook 登入】→「Facebook 登入」→「設定」
 3. 在「允許的重新導向 URL」中加入：
    ```
    https://abc123-8080.asse.devtunnels.ms/auth/facebook/callback
