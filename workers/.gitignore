@@ -79,3 +79,10 @@ jspm_packages/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# wrangler files
+.dev.vars
+.wrangler/
+wrangler.state/
+
+dist/
