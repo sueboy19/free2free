@@ -80,7 +80,10 @@ export class DB {
     }
 
     if (updates.length > 0) {
-      await this.db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values, id).run();
+      await this.db
+        .prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`)
+        .bind(...values, id)
+        .run();
     }
 
     return this.getUserById(id);
@@ -93,7 +96,7 @@ export class DB {
 
   async listUsers(): Promise<User[]> {
     const result = await this.db.prepare('SELECT * FROM users ORDER BY id DESC').all<DBUser>();
-    return (result.results || []).map(u => ({ ...u, is_admin: u.is_admin === 1 }));
+    return (result.results || []).map((u) => ({ ...u, is_admin: u.is_admin === 1 }));
   }
 
   // Location operations
@@ -111,11 +114,16 @@ export class DB {
   }
 
   async listLocations(): Promise<Location[]> {
-    const result = await this.db.prepare('SELECT * FROM locations ORDER BY id DESC').all<Location>();
+    const result = await this.db
+      .prepare('SELECT * FROM locations ORDER BY id DESC')
+      .all<Location>();
     return result.results || [];
   }
 
-  async updateLocation(id: number, location: Partial<Omit<Location, 'id'>>): Promise<Location | null> {
+  async updateLocation(
+    id: number,
+    location: Partial<Omit<Location, 'id'>>
+  ): Promise<Location | null> {
     const updates: string[] = [];
     const values: any[] = [];
 
@@ -125,7 +133,8 @@ export class DB {
     }
 
     if (updates.length > 0) {
-      await this.db.prepare(`UPDATE locations SET ${updates.join(', ')} WHERE id = ?`)
+      await this.db
+        .prepare(`UPDATE locations SET ${updates.join(', ')} WHERE id = ?`)
         .bind(...values, id)
         .run();
     }
@@ -158,7 +167,10 @@ export class DB {
   }
 
   async getActivityById(id: number): Promise<Activity | null> {
-    const activity = await this.db.prepare('SELECT * FROM activities WHERE id = ?').bind(id).first<Activity>();
+    const activity = await this.db
+      .prepare('SELECT * FROM activities WHERE id = ?')
+      .bind(id)
+      .first<Activity>();
 
     if (!activity) return null;
 
@@ -167,7 +179,9 @@ export class DB {
   }
 
   async listActivities(): Promise<Activity[]> {
-    const result = await this.db.prepare('SELECT * FROM activities ORDER BY id DESC').all<Activity>();
+    const result = await this.db
+      .prepare('SELECT * FROM activities ORDER BY id DESC')
+      .all<Activity>();
 
     const activities = result.results || [];
 
@@ -179,7 +193,10 @@ export class DB {
     return activities;
   }
 
-  async updateActivity(id: number, activity: Partial<Omit<Activity, 'id' | 'location'>>): Promise<Activity | null> {
+  async updateActivity(
+    id: number,
+    activity: Partial<Omit<Activity, 'id' | 'location'>>
+  ): Promise<Activity | null> {
     const updates: string[] = [];
     const values: any[] = [];
 
@@ -189,7 +206,8 @@ export class DB {
     }
 
     if (updates.length > 0) {
-      await this.db.prepare(`UPDATE activities SET ${updates.join(', ')} WHERE id = ?`)
+      await this.db
+        .prepare(`UPDATE activities SET ${updates.join(', ')} WHERE id = ?`)
         .bind(...values, id)
         .run();
     }
@@ -205,7 +223,9 @@ export class DB {
   // Match operations
   async createMatch(match: Omit<Match, 'id' | 'activity' | 'organizer'>): Promise<Match> {
     const result = await this.db
-      .prepare(`INSERT INTO matches (activity_id, organizer_id, match_time, status) VALUES (?, ?, ?, ?)`)
+      .prepare(
+        `INSERT INTO matches (activity_id, organizer_id, match_time, status) VALUES (?, ?, ?, ?)`
+      )
       .bind(match.activity_id, match.organizer_id, match.match_time, match.status || 'open')
       .run();
 
@@ -213,7 +233,10 @@ export class DB {
   }
 
   async getMatchById(id: number): Promise<Match | null> {
-    const match = await this.db.prepare('SELECT * FROM matches WHERE id = ?').bind(id).first<Match>();
+    const match = await this.db
+      .prepare('SELECT * FROM matches WHERE id = ?')
+      .bind(id)
+      .first<Match>();
 
     if (!match) return null;
 
@@ -225,7 +248,9 @@ export class DB {
 
   async listOpenMatches(): Promise<Match[]> {
     const result = await this.db
-      .prepare(`SELECT * FROM matches WHERE status = ? AND match_time > datetime('now') ORDER BY match_time ASC`)
+      .prepare(
+        `SELECT * FROM matches WHERE status = ? AND match_time > datetime('now') ORDER BY match_time ASC`
+      )
       .bind('open')
       .all<Match>();
 
@@ -264,7 +289,10 @@ export class DB {
     return matches;
   }
 
-  async updateMatchStatus(id: number, status: 'open' | 'completed' | 'cancelled'): Promise<Match | null> {
+  async updateMatchStatus(
+    id: number,
+    status: 'open' | 'completed' | 'cancelled'
+  ): Promise<Match | null> {
     await this.db.prepare('UPDATE matches SET status = ? WHERE id = ?').bind(status, id).run();
     return this.getMatchById(id);
   }
@@ -333,20 +361,29 @@ export class DB {
     return participants;
   }
 
-  async updateParticipantStatus(id: number, status: 'pending' | 'approved' | 'rejected'): Promise<MatchParticipant | null> {
-    await this.db.prepare('UPDATE match_participants SET status = ? WHERE id = ?')
+  async updateParticipantStatus(
+    id: number,
+    status: 'pending' | 'approved' | 'rejected'
+  ): Promise<MatchParticipant | null> {
+    await this.db
+      .prepare('UPDATE match_participants SET status = ? WHERE id = ?')
       .bind(status, id)
       .run();
     return this.getMatchParticipantById(id);
   }
 
   async deleteMatchParticipant(id: number): Promise<boolean> {
-    const result = await this.db.prepare('DELETE FROM match_participants WHERE id = ?').bind(id).run();
+    const result = await this.db
+      .prepare('DELETE FROM match_participants WHERE id = ?')
+      .bind(id)
+      .run();
     return (result.meta.changes || 0) > 0;
   }
 
   // Review operations
-  async createReview(review: Omit<Review, 'id' | 'match' | 'reviewer' | 'reviewee' | 'created_at'>): Promise<Review> {
+  async createReview(
+    review: Omit<Review, 'id' | 'match' | 'reviewer' | 'reviewee' | 'created_at'>
+  ): Promise<Review> {
     const result = await this.db
       .prepare(
         `INSERT INTO reviews (match_id, reviewer_id, reviewee_id, score, comment, created_at)
@@ -365,7 +402,10 @@ export class DB {
   }
 
   async getReviewById(id: number): Promise<Review | null> {
-    const review = await this.db.prepare('SELECT * FROM reviews WHERE id = ?').bind(id).first<Review>();
+    const review = await this.db
+      .prepare('SELECT * FROM reviews WHERE id = ?')
+      .bind(id)
+      .first<Review>();
 
     if (!review) return null;
 
@@ -373,7 +413,12 @@ export class DB {
     const reviewer = await this.getUserById(review.reviewer_id);
     const reviewee = await this.getUserById(review.reviewee_id);
 
-    return { ...review, match: match || undefined, reviewer: reviewer || undefined, reviewee: reviewee || undefined };
+    return {
+      ...review,
+      match: match || undefined,
+      reviewer: reviewer || undefined,
+      reviewee: reviewee || undefined,
+    };
   }
 
   async listReviewsByMatch(matchId: number): Promise<Review[]> {
@@ -426,7 +471,8 @@ export class DB {
     }
 
     if (updates.length > 0) {
-      await this.db.prepare(`UPDATE reviews SET ${updates.join(', ')} WHERE id = ?`)
+      await this.db
+        .prepare(`UPDATE reviews SET ${updates.join(', ')} WHERE id = ?`)
         .bind(...values, id)
         .run();
     }
@@ -470,14 +516,22 @@ export class DB {
   }
 
   async getReviewLikeById(id: number): Promise<ReviewLike | null> {
-    const like = await this.db.prepare('SELECT * FROM review_likes WHERE id = ?').bind(id).first<DBReviewLike>();
+    const like = await this.db
+      .prepare('SELECT * FROM review_likes WHERE id = ?')
+      .bind(id)
+      .first<DBReviewLike>();
 
     if (!like) return null;
 
     const review = await this.getReviewById(like.review_id);
     const user = await this.getUserById(like.user_id);
 
-    return { ...like, review: review || undefined, user: user || undefined, is_like: like.is_like === 1 };
+    return {
+      ...like,
+      review: review || undefined,
+      user: user || undefined,
+      is_like: like.is_like === 1,
+    };
   }
 
   async getReviewLike(reviewId: number, userId: number): Promise<ReviewLike | null> {
@@ -491,7 +545,12 @@ export class DB {
     const review = await this.getReviewById(like.review_id);
     const user = await this.getUserById(like.user_id);
 
-    return { ...like, review: review || undefined, user: user || undefined, is_like: like.is_like === 1 };
+    return {
+      ...like,
+      review: review || undefined,
+      user: user || undefined,
+      is_like: like.is_like === 1,
+    };
   }
 
   async deleteReviewLike(reviewId: number, userId: number): Promise<boolean> {
@@ -504,9 +563,15 @@ export class DB {
   }
 
   // RefreshToken operations
-  async createRefreshToken(userId: number, token: string, expiresAt: string): Promise<RefreshToken> {
+  async createRefreshToken(
+    userId: number,
+    token: string,
+    expiresAt: string
+  ): Promise<RefreshToken> {
     const result = await this.db
-      .prepare(`INSERT INTO refresh_tokens (user_id, token, expires_at, created_at) VALUES (?, ?, ?, datetime('now'))`)
+      .prepare(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at) VALUES (?, ?, ?, datetime('now'))`
+      )
       .bind(userId, token, expiresAt)
       .run();
 
@@ -514,7 +579,10 @@ export class DB {
   }
 
   async getRefreshTokenById(id: number): Promise<RefreshToken | null> {
-    const token = await this.db.prepare('SELECT * FROM refresh_tokens WHERE id = ?').bind(id).first<RefreshToken>();
+    const token = await this.db
+      .prepare('SELECT * FROM refresh_tokens WHERE id = ?')
+      .bind(id)
+      .first<RefreshToken>();
 
     if (!token) return null;
 
@@ -524,7 +592,8 @@ export class DB {
   }
 
   async getRefreshTokenByToken(token: string): Promise<RefreshToken | null> {
-    const refreshToken = await this.db.prepare('SELECT * FROM refresh_tokens WHERE token = ?')
+    const refreshToken = await this.db
+      .prepare('SELECT * FROM refresh_tokens WHERE token = ?')
       .bind(token)
       .first<RefreshToken>();
 
@@ -541,7 +610,10 @@ export class DB {
   }
 
   async deleteRefreshTokensByUserId(userId: number): Promise<number> {
-    const result = await this.db.prepare('DELETE FROM refresh_tokens WHERE user_id = ?').bind(userId).run();
+    const result = await this.db
+      .prepare('DELETE FROM refresh_tokens WHERE user_id = ?')
+      .bind(userId)
+      .run();
     return result.meta.changes || 0;
   }
 
@@ -568,7 +640,8 @@ export class DB {
   }
 
   async getAdminByUsername(username: string): Promise<Admin | null> {
-    return await this.db.prepare('SELECT * FROM admins WHERE username = ?')
+    return await this.db
+      .prepare('SELECT * FROM admins WHERE username = ?')
       .bind(username)
       .first<Admin>();
   }
@@ -588,7 +661,8 @@ export class DB {
     }
 
     if (updates.length > 0) {
-      await this.db.prepare(`UPDATE admins SET ${updates.join(', ')} WHERE id = ?`)
+      await this.db
+        .prepare(`UPDATE admins SET ${updates.join(', ')} WHERE id = ?`)
         .bind(...values, id)
         .run();
     }
@@ -615,7 +689,9 @@ export class DB {
   }
 
   async getTableCount(tableName: string): Promise<number> {
-    const result = await this.db.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).first<{ count: number }>();
+    const result = await this.db
+      .prepare(`SELECT COUNT(*) as count FROM ${tableName}`)
+      .first<{ count: number }>();
     return result?.count || 0;
   }
 

@@ -9,13 +9,44 @@ describe('DB Operations', () => {
   beforeEach(async () => {
     env = {
       DB: {
-        prepare: (query: string) => ({
-          bind: (...args: any[]) => ({
-            run: async () => ({ meta: { last_row_id: 1, changes: 1 } }),
-            first: async <T>() => ({ id: 1, name: 'Test User', email: 'test@example.com', is_admin: 0 } as T),
-            all: async <T>() => ({ results: [] as T[] }),
-          }),
-        }),
+        prepare: (query: string) => {
+          return {
+            bind: (...args: any[]) => {
+              const lowerQuery = query.toLowerCase();
+              return {
+                run: async () => ({ meta: { last_row_id: 1, changes: 1 } }),
+                first: async <T>() => {
+                  if (lowerQuery.includes('locations')) {
+                    return { id: 1, name: 'Test Location', address: '123 Test St', latitude: 25.0479, longitude: 121.5170 } as T;
+                  }
+                  if (lowerQuery.includes('activities')) {
+                    return { id: 1, title: 'Test Activity', target_count: 4, location_id: 1, description: 'Test Description', created_by: 1, location: { id: 1, name: 'Test Location' } } as T;
+                  }
+                  if (lowerQuery.includes('matches')) {
+                    return { id: 1, activity_id: 1, organizer_id: 1, match_time: '2024-01-01T10:00:00Z', status: 'open', activity: { id: 1, title: 'Test Activity' }, organizer: { id: 1, name: 'Test User' } } as T;
+                  }
+                  if (lowerQuery.includes('match_participants')) {
+                    return { id: 1, match_id: 1, user_id: 1, status: 'pending', joined_at: '2024-01-01T10:00:00Z', match: { id: 1, activity_id: 1, organizer_id: 1 }, user: { id: 1, name: 'Test User' } } as T;
+                  }
+                  if (lowerQuery.includes('reviews')) {
+                    return { id: 1, match_id: 1, reviewer_id: 1, reviewee_id: 2, score: 5, comment: 'Great!', created_at: '2024-01-01T10:00:00Z', match: { id: 1, activity_id: 1 }, reviewer: { id: 1, name: 'Test User' }, reviewee: { id: 2, name: 'Test User 2' } } as T;
+                  }
+                  if (lowerQuery.includes('review_likes')) {
+                    return { id: 1, review_id: 1, user_id: 1, is_like: 1, review: { id: 1, score: 5 }, user: { id: 1, name: 'Test User' } } as T;
+                  }
+                  if (lowerQuery.includes('refresh_tokens')) {
+                    return { id: 1, user_id: 1, token: 'test-token', expires_at: '2024-01-01T10:00:00Z', created_at: '2024-01-01T09:00:00Z', user: { id: 1, name: 'Test User' } } as T;
+                  }
+                  if (lowerQuery.includes('admins')) {
+                    return { id: 1, username: 'admin', email: 'admin@example.com' } as T;
+                  }
+                  return { id: 1, name: 'Test User', email: 'test@example.com', is_admin: 0 } as T;
+                },
+                all: async <T>() => ({ results: [] as T[] }),
+              };
+            },
+          };
+        },
       } as any,
       KV: {} as any,
       JWT_SECRET: 'test-secret-key-at-least-32-characters-long',

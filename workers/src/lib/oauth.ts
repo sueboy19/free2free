@@ -1,5 +1,3 @@
-import type { User } from '../types';
-
 export interface OAuthProvider {
   name: 'facebook' | 'instagram';
   getAuthUrl(): string;
@@ -44,9 +42,7 @@ export class FacebookOAuthProvider implements OAuthProvider {
       code,
     });
 
-    const response = await fetch(
-      `https://graph.facebook.com/v18.0/oauth/access_token?${params}`
-    );
+    const response = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${params}`);
     const data: any = await response.json();
 
     if (data.error) {

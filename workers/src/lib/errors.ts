@@ -13,8 +13,7 @@ export const ErrorCodes = {
 } as const;
 
 export const Errors = {
-  validation: (message: string) =>
-    new AppError(400, ErrorCodes.VALIDATION_ERROR, message),
+  validation: (message: string) => new AppError(400, ErrorCodes.VALIDATION_ERROR, message),
 
   unauthorized: (message: string = 'Authentication required') =>
     new AppError(401, ErrorCodes.UNAUTHORIZED, message),
@@ -22,8 +21,7 @@ export const Errors = {
   forbidden: (message: string = 'Access denied') =>
     new AppError(403, ErrorCodes.FORBIDDEN, message),
 
-  notFound: (resource: string) =>
-    new AppError(404, ErrorCodes.NOT_FOUND, `${resource} not found`),
+  notFound: (resource: string) => new AppError(404, ErrorCodes.NOT_FOUND, `${resource} not found`),
 
   conflict: (message: string) => new AppError(409, ErrorCodes.CONFLICT, message),
 
