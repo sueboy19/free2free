@@ -30,6 +30,7 @@ export class FacebookOAuthProvider implements OAuthProvider {
       redirect_uri: this.redirectUri,
       scope: 'email,public_profile',
       response_type: 'code',
+      state: crypto.randomUUID(),
     });
     return `https://www.facebook.com/v18.0/dialog/oauth?${params}`;
   }
@@ -46,7 +47,7 @@ export class FacebookOAuthProvider implements OAuthProvider {
     const data: any = await response.json();
 
     if (data.error) {
-      throw new Error(data.error.message);
+      throw new Error(`Facebook OAuth error: ${data.error.message}`);
     }
 
     return data.access_token;
@@ -62,7 +63,7 @@ export class FacebookOAuthProvider implements OAuthProvider {
     const data: any = await response.json();
 
     if (data.error) {
-      throw new Error(data.error.message);
+      throw new Error(`Facebook API error: ${data.error.message}`);
     }
 
     return {
@@ -92,49 +93,53 @@ export class InstagramOAuthProvider implements OAuthProvider {
       redirect_uri: this.redirectUri,
       scope: 'user_profile',
       response_type: 'code',
+      state: crypto.randomUUID(),
     });
     return `https://api.instagram.com/oauth/authorize?${params}`;
   }
 
   async exchangeCodeForToken(code: string): Promise<string> {
+    const params = new URLSearchParams({
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      grant_type: 'authorization_code',
+      redirect_uri: this.redirectUri,
+      code,
+    });
+
     const response = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
-      body: JSON.stringify({
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-        grant_type: 'authorization_code',
-        redirect_uri: this.redirectUri,
-        code,
-      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
     });
 
     const data: any = await response.json();
 
-    if (data.error) {
-      throw new Error(data.error.message);
+    if (data.error_type) {
+      throw new Error(`Instagram OAuth error: ${data.error_message}`);
     }
 
     return data.access_token;
   }
 
   async getUserProfile(accessToken: string): Promise<OAuthProfile> {
-    const response = await fetch('https://graph.instagram.com/me', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+    const params = new URLSearchParams({
+      fields: 'id,username,profile_picture_url',
+      access_token: accessToken,
     });
 
+    const response = await fetch(`https://graph.instagram.com/me?${params}`);
     const data: any = await response.json();
 
     if (data.error) {
-      throw new Error(data.error.message);
+      throw new Error(`Instagram API error: ${data.error.message}`);
     }
 
     return {
       id: data.id,
       name: data.username,
       email: '',
-      avatar_url: '',
+      avatar_url: data.profile_picture_url,
     };
   }
 }
@@ -148,5 +153,18 @@ export class OAuthManager {
 
   getProvider(name: string): OAuthProvider | undefined {
     return this.providers.get(name);
+  }
+
+  async handleOAuthLogin(providerName: string, code: string): Promise<OAuthProfile> {
+    const provider = this.getProvider(providerName);
+
+    if (!provider) {
+      throw new Error(`OAuth provider '${providerName}' not found`);
+    }
+
+    const accessToken = await provider.exchangeCodeForToken(code);
+    const profile = await provider.getUserProfile(accessToken);
+
+    return profile;
   }
 }

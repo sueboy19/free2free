@@ -3,6 +3,11 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { errorHandler } from './middleware/error';
 import type { Env } from './types';
+import authRoutes from './routes/auth';
+import adminRoutes from './routes/admin';
+import userRoutes from './routes/user';
+import organizerRoutes from './routes/organizer';
+import reviewRoutes from './routes/review';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -25,5 +30,11 @@ app.get('/', (c) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+app.route('/', authRoutes);
+app.route('/', adminRoutes);
+app.route('/', userRoutes);
+app.route('/', organizerRoutes);
+app.route('/', reviewRoutes);
 
 export default app;

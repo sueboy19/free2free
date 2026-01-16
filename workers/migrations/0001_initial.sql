@@ -87,6 +87,15 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  data TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_social ON users(social_id, social_provider);
 CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status, match_time);
 CREATE INDEX IF NOT EXISTS idx_match_participants_user ON match_participants(user_id);
@@ -94,3 +103,5 @@ CREATE INDEX IF NOT EXISTS idx_match_participants_match ON match_participants(ma
 CREATE INDEX IF NOT EXISTS idx_reviews_reviewer ON reviews(reviewer_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_match ON reviews(match_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);

@@ -29,9 +29,12 @@ export class JWTManager {
   }
 
   async generateRefreshToken(user: User): Promise<string> {
-    return new SignJWT({
+    const tokenData = {
       user_id: user.id,
-    })
+      jti: crypto.randomUUID(),
+    };
+
+    return new SignJWT(tokenData)
       .setProtectedHeader({ alg: JWT_ALGORITHM })
       .setIssuedAt()
       .setExpirationTime(REFRESH_TOKEN_EXPIRY)
@@ -48,12 +51,35 @@ export class JWTManager {
   }
 
   async verifyAccessToken(token: string): Promise<JWTPayload> {
-    const { payload } = await jwtVerify(token, this.getSecretKey());
-    return payload as unknown as JWTPayload;
+    try {
+      const { payload } = await jwtVerify(token, this.getSecretKey());
+      return payload as unknown as JWTPayload;
+    } catch {
+      throw new Error('Invalid or expired access token');
+    }
   }
 
-  async verifyRefreshToken(token: string): Promise<{ user_id: number }> {
-    const { payload } = await jwtVerify(token, this.getSecretKey());
-    return payload as { user_id: number };
+  async verifyRefreshToken(token: string): Promise<{ user_id: number; jti: string }> {
+    try {
+      const { payload } = await jwtVerify(token, this.getSecretKey());
+      return {
+        user_id: payload.user_id as number,
+        jti: payload.jti as string,
+      };
+    } catch {
+      throw new Error('Invalid or expired refresh token');
+    }
   }
+
+  async getTokenPayload(token: string): Promise<JWTPayload | null> {
+    try {
+      return await this.verifyAccessToken(token);
+    } catch {
+      return null;
+    }
+  }
+}
+
+export function createJWTManager(secret: string): JWTManager {
+  return new JWTManager(secret);
 }

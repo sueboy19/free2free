@@ -106,3 +106,31 @@ export interface JWTPayload {
   exp: number;
   iat: number;
 }
+
+export interface Session {
+  id: string;
+  user_id: number;
+  data: Record<string, unknown>;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access: string;
+  refresh: string;
+}
+
+export interface LoginResponse {
+  user: User;
+  tokens: TokenResponse;
+  session_id: string;
+}
+
+export interface RefreshTokenRequest {
+  refresh_token: string;
+}
+
+export interface LogoutRequest {
+  refresh_token?: string;
+  session_id?: string;
+}
