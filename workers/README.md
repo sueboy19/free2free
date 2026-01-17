@@ -127,9 +127,6 @@ wrangler secret put FACEBOOK_KEY --env staging
 wrangler secret put FACEBOOK_SECRET --env staging
 wrangler secret put INSTAGRAM_KEY --env staging
 wrangler secret put INSTAGRAM_SECRET --env staging
-
-wrangler secret put CORS_ORIGINS --env staging
-wrangler secret put BASE_URL --env staging
 ```
 
 **常用指令**：
@@ -159,9 +156,6 @@ wrangler secret put FACEBOOK_KEY --env production
 wrangler secret put FACEBOOK_SECRET --env production
 wrangler secret put INSTAGRAM_KEY --env production
 wrangler secret put INSTAGRAM_SECRET --env production
-
-wrangler secret put CORS_ORIGINS --env production
-wrangler secret put BASE_URL --env production
 ```
 ```
 CORS_ORIGINS 參考值
