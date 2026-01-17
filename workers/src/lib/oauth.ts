@@ -47,7 +47,7 @@ export class FacebookOAuthProvider implements OAuthProvider {
     const data: any = await response.json();
 
     if (data.error) {
-      throw new Error(`Facebook OAuth error: ${data.error.message}`);
+      throw new Error(`Facebook OAuth error: ${data.error.message} (code: ${data.error.code})`);
     }
 
     return data.access_token;
