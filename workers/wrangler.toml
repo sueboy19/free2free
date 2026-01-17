@@ -6,12 +6,32 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "free2free-db"
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+database_id = "xxxxxxxxxxxxxxxxxxxxxx"
 
 [vars]
 ENVIRONMENT = "development"
 CORS_ORIGINS = "http://localhost:3000,http://localhost:5173"
+
+[env.staging]
+name = "free2free-api-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+CORS_ORIGINS = "https://staging.free2free.example.com"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "free2free-db-staging"
+database_id = "staging-database-id"
+
+[env.production]
+name = "free2free-api-prod"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+CORS_ORIGINS = "https://free2free.example.com,https://www.free2free.example.com"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "free2free-db"
+database_id = "7e2b5c27-c755-42e5-b349-b035b5df3534"
