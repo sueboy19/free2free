@@ -168,6 +168,11 @@ CORS_ORIGINS 參考值
 ,http://localhost:5173,http://localhost:3000 用,隔開
 ```
 
+** Debug **
+```
+wrangler tail --env=production
+```
+
 **常用指令**：
 
 ```bash

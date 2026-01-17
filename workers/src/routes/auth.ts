@@ -3,7 +3,6 @@ import type { Env } from '../types';
 import { FacebookOAuthProvider, InstagramOAuthProvider } from '../lib/oauth';
 import { JWTManager } from '../lib/jwt';
 import { SessionManager } from '../lib/session';
-import { decodeJwt } from 'jose';
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -14,8 +13,7 @@ router.get('/auth/:provider', async (c) => {
     throw new Error('Invalid OAuth provider');
   }
 
-  const baseUrl = c.env.BASE_URL || `https://${c.req.url.split('/')[2]}`;
-  const redirectUri = `${baseUrl}/auth/${provider}/callback`;
+  const redirectUri = `${c.env.BASE_URL}/auth/${provider}/callback`;
 
   let oauthProvider;
   if (provider === 'facebook') {
@@ -45,8 +43,7 @@ router.get('/auth/:provider/callback', async (c) => {
     throw new Error('Authorization code is required');
   }
 
-  const baseUrl = c.env.BASE_URL || `https://${c.req.url.split('/')[2]}`;
-  const redirectUri = `${baseUrl}/auth/${provider}/callback`;
+  const redirectUri = `${c.env.BASE_URL}/auth/${provider}/callback`;
 
   let oauthProvider;
   if (provider === 'facebook') {
@@ -105,8 +102,7 @@ router.get('/auth/:provider/callback', async (c) => {
 
   const tokens = await jwtManager.generateTokens(userData);
 
-  const decoded = decodeJwt(tokens.refresh);
-  const expiresAt = new Date((((decoded.payload as any).exp as number) || 0) * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   await c.env.DB.prepare(
     `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
@@ -209,8 +205,7 @@ router.post('/auth/refresh', async (c) => {
 
   await c.env.DB.prepare('DELETE FROM refresh_tokens WHERE token = ?').bind(refreshToken).run();
 
-  const decoded = decodeJwt(newTokens.refresh);
-  const expiresAt = new Date((((decoded.payload as any).exp as number) || 0) * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   await c.env.DB.prepare(
     `INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
