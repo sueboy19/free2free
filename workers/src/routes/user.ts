@@ -16,6 +16,11 @@ router.get('/matches', optionalAuthMiddleware, async (c) => {
 
 router.get('/user/matches', authMiddleware, async (c) => {
   const user = c.get('user' as never);
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
   const status = c.req.query('status') || 'completed';
 
   const result = await c.env.DB.prepare(
