@@ -84,5 +84,6 @@ jspm_packages/
 .dev.vars
 .wrangler/
 wrangler.state/
+wrangler.toml
 
 dist/
