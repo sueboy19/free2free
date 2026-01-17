@@ -13,13 +13,15 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.use('*', logger());
 app.use('*', async (c, next) => {
-  const corsMiddleware = cors({
+  const corsConfig = cors({
     origin: c.env.CORS_ORIGINS.split(','),
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 86400,
   });
-  return corsMiddleware(c, next);
+  return corsConfig(c, next);
 });
 app.use('*', errorHandler);
 
