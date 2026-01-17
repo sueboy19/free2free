@@ -48,3 +48,5 @@ dist/
 *.min.css
 yarn.lock
 pnpm-lock.yaml
+
+.dev.vars
