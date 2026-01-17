@@ -1,5 +1,6 @@
 import type { Context, Next } from 'hono';
 import type { Env } from '../types';
+import { JWTManager } from '../lib/jwt';
 
 export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) => {
   try {
@@ -11,7 +12,6 @@ export const authMiddleware = async (c: Context<{ Bindings: Env }>, next: Next) 
 
     const token = authHeader.substring(7);
 
-    const { JWTManager } = await import('../lib/jwt');
     const jwtManager = new JWTManager(c.env.JWT_SECRET);
     const payload = await jwtManager.verifyAccessToken(token);
 
@@ -70,7 +70,6 @@ export const optionalAuthMiddleware = async (c: Context<{ Bindings: Env }>, next
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const { JWTManager } = await import('../lib/jwt');
       const jwtManager = new JWTManager(c.env.JWT_SECRET);
       const payload = await jwtManager.verifyAccessToken(token);
 

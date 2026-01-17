@@ -1,5 +1,9 @@
 import { Hono } from 'hono';
 import type { Env } from '../types';
+import { FacebookOAuthProvider, InstagramOAuthProvider } from '../lib/oauth';
+import { JWTManager } from '../lib/jwt';
+import { SessionManager } from '../lib/session';
+import { decodeJwt } from 'jose';
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -10,9 +14,8 @@ router.get('/auth/:provider', async (c) => {
     throw new Error('Invalid OAuth provider');
   }
 
-  const redirectUri = `${c.env.BASE_URL}/auth/${provider}/callback`;
-
-  const { FacebookOAuthProvider, InstagramOAuthProvider } = await import('../lib/oauth');
+  const baseUrl = c.env.BASE_URL || `https://${c.req.url.split('/')[2]}`;
+  const redirectUri = `${baseUrl}/auth/${provider}/callback`;
 
   let oauthProvider;
   if (provider === 'facebook') {
@@ -31,7 +34,7 @@ router.get('/auth/:provider', async (c) => {
 
   const authUrl = oauthProvider.getAuthUrl();
 
-  return c.json({ auth_url: authUrl });
+  return c.redirect(authUrl, 302);
 });
 
 router.get('/auth/:provider/callback', async (c) => {
@@ -42,9 +45,8 @@ router.get('/auth/:provider/callback', async (c) => {
     throw new Error('Authorization code is required');
   }
 
-  const redirectUri = `${c.env.BASE_URL}/auth/${provider}/callback`;
-
-  const { FacebookOAuthProvider, InstagramOAuthProvider } = await import('../lib/oauth');
+  const baseUrl = c.env.BASE_URL || `https://${c.req.url.split('/')[2]}`;
+  const redirectUri = `${baseUrl}/auth/${provider}/callback`;
 
   let oauthProvider;
   if (provider === 'facebook') {
@@ -87,7 +89,6 @@ router.get('/auth/:provider/callback', async (c) => {
     throw new Error('Failed to create user');
   }
 
-  const { JWTManager } = await import('../lib/jwt');
   const jwtManager = new JWTManager(c.env.JWT_SECRET);
 
   const userData = {
@@ -104,7 +105,6 @@ router.get('/auth/:provider/callback', async (c) => {
 
   const tokens = await jwtManager.generateTokens(userData);
 
-  const { decodeJwt } = await import('jose');
   const decoded = decodeJwt(tokens.refresh);
   const expiresAt = new Date((((decoded.payload as any).exp as number) || 0) * 1000).toISOString();
 
@@ -115,18 +115,53 @@ router.get('/auth/:provider/callback', async (c) => {
     .bind(user.id, tokens.refresh, expiresAt)
     .run();
 
-  const { SessionManager } = await import('../lib/session');
   const sessionManager = new SessionManager(c.env.DB);
-  const session = await sessionManager.createSession(user.id as number, { ...userData });
+  await sessionManager.createSession(user.id as number, { ...userData });
 
-  return c.json({
-    user: userData,
-    tokens: {
-      access: tokens.access,
-      refresh: tokens.refresh,
-    },
-    session_id: session.id,
+  // Return HTML page with postMessage like Go backend
+  const userJSON = JSON.stringify({
+    id: userData.id,
+    social_id: userData.social_id,
+    social_provider: userData.social_provider,
+    name: userData.name,
+    email: userData.email,
+    avatar_url: userData.avatar_url,
+    is_admin: userData.is_admin,
+    created_at: userData.created_at,
+    updated_at: userData.updated_at,
   });
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>${provider === 'facebook' ? 'Facebook' : 'Instagram'} 登入成功</title>
+  <script>
+    (function() {
+      var response = {
+        type: 'auth_success',
+        payload: {
+          user: ${userJSON},
+          token: "${tokens.access}"
+        }
+      };
+
+      if (window.opener) {
+        window.opener.postMessage(response, '*');
+      }
+
+      setTimeout(function() {
+        window.close();
+      }, 1000);
+    })();
+  </script>
+</head>
+<body>
+  <p>登入成功，正在返回...</p>
+</body>
+</html>`;
+
+  c.header('Content-Type', 'text/html; charset=utf-8');
+  return c.body(html);
 });
 
 router.post('/auth/refresh', async (c) => {
@@ -137,7 +172,6 @@ router.post('/auth/refresh', async (c) => {
     throw new Error('Refresh token is required');
   }
 
-  const { JWTManager } = await import('../lib/jwt');
   const jwtManager = new JWTManager(c.env.JWT_SECRET);
   const payload = await jwtManager.verifyRefreshToken(refreshToken);
 
@@ -175,7 +209,6 @@ router.post('/auth/refresh', async (c) => {
 
   await c.env.DB.prepare('DELETE FROM refresh_tokens WHERE token = ?').bind(refreshToken).run();
 
-  const { decodeJwt } = await import('jose');
   const decoded = decodeJwt(newTokens.refresh);
   const expiresAt = new Date((((decoded.payload as any).exp as number) || 0) * 1000).toISOString();
 

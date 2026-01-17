@@ -17,7 +17,6 @@ name = "free2free-api-staging"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-CORS_ORIGINS = "https://staging.free2free.example.com"
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -29,7 +28,6 @@ name = "free2free-api-prod"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-CORS_ORIGINS = "https://free2free.example.com,https://www.free2free.example.com"
 
 [[env.production.d1_databases]]
 binding = "DB"

@@ -99,6 +99,11 @@ wrangler d1 execute DB --local --file=./migrations/0001_initial.sql
 wrangler d1 execute DB --local --command="SELECT * FROM users LIMIT 10;"
 ```
 
+# frontend
+```
+wrangler pages dev ../frontend/dist --port=3000
+```
+
 #### 2. Staging 環境
 
 **資料庫**：
@@ -122,6 +127,9 @@ wrangler secret put FACEBOOK_KEY --env staging
 wrangler secret put FACEBOOK_SECRET --env staging
 wrangler secret put INSTAGRAM_KEY --env staging
 wrangler secret put INSTAGRAM_SECRET --env staging
+
+wrangler secret put CORS_ORIGINS --env staging
+wrangler secret put BASE_URL --env staging
 ```
 
 **常用指令**：
@@ -151,6 +159,13 @@ wrangler secret put FACEBOOK_KEY --env production
 wrangler secret put FACEBOOK_SECRET --env production
 wrangler secret put INSTAGRAM_KEY --env production
 wrangler secret put INSTAGRAM_SECRET --env production
+
+wrangler secret put CORS_ORIGINS --env production
+wrangler secret put BASE_URL --env production
+```
+```
+CORS_ORIGINS 參考值
+,http://localhost:5173,http://localhost:3000 用,隔開
 ```
 
 **常用指令**：
@@ -161,6 +176,13 @@ wrangler d1 execute free2free-db --remote --file=./migrations/0001_initial.sql
 
 # 部署到 production（重要：必須加 --env production）
 wrangler deploy --env production
+```
+
+**frontend**：
+```
+wrangler pages deploy ../frontend/dist --project-name=free2free
+
+wrangler pages project list
 ```
 
 ### 環境對比表
