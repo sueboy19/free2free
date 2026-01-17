@@ -3,6 +3,7 @@ import type { Env } from '../types';
 import { FacebookOAuthProvider, InstagramOAuthProvider } from '../lib/oauth';
 import { JWTManager } from '../lib/jwt';
 import { SessionManager } from '../lib/session';
+import { authMiddleware } from '../middleware/auth';
 
 const router = new Hono<{ Bindings: Env }>();
 
@@ -223,22 +224,26 @@ router.post('/auth/refresh', async (c) => {
 });
 
 router.post('/auth/logout', async (c) => {
-  const body = await c.req.json();
-  const refreshToken = body.refresh_token;
-  const sessionId = body.session_id;
+  try {
+    const body = await c.req.json();
+    const refreshToken = body.refresh_token;
+    const sessionId = body.session_id;
 
-  if (refreshToken) {
-    await c.env.DB.prepare('DELETE FROM refresh_tokens WHERE token = ?').bind(refreshToken).run();
+    if (refreshToken) {
+      await c.env.DB.prepare('DELETE FROM refresh_tokens WHERE token = ?').bind(refreshToken).run();
+    }
+
+    if (sessionId) {
+      await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionId).run();
+    }
+
+    return c.json({ message: 'Logged out successfully' });
+  } catch {
+    return c.json({ message: 'Logged out successfully' });
   }
-
-  if (sessionId) {
-    await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionId).run();
-  }
-
-  return c.json({ message: 'Logged out successfully' });
 });
 
-router.get('/auth/me', async (c) => {
+router.get('/auth/me', authMiddleware, async (c) => {
   const user = c.get('user' as never);
 
   if (!user) {
@@ -246,6 +251,20 @@ router.get('/auth/me', async (c) => {
   }
 
   return c.json({ user });
+});
+
+router.get('/profile', authMiddleware, async (c) => {
+  const user = c.get('user' as never);
+
+  if (!user) {
+    throw new Error('Authentication required');
+  }
+
+  return c.json({ user });
+});
+
+router.get('/logout', async (c) => {
+  return c.json({ message: 'Logged out successfully' });
 });
 
 export default router;

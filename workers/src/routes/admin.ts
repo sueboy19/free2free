@@ -3,9 +3,8 @@ import { adminAuthMiddleware } from '../middleware/auth';
 import type { Env } from '../types';
 
 const router = new Hono<{ Bindings: Env }>();
-router.use('/*', adminAuthMiddleware);
 
-router.post('/admin/locations', async (c) => {
+router.post('/admin/locations', adminAuthMiddleware, async (c) => {
   const body = await c.req.json();
   const { name, address, latitude, longitude } = body;
 
@@ -26,12 +25,12 @@ router.post('/admin/locations', async (c) => {
   return c.json({ data: location });
 });
 
-router.get('/admin/locations', async (c) => {
+router.get('/admin/locations', adminAuthMiddleware, async (c) => {
   const result = await c.env.DB.prepare('SELECT * FROM locations ORDER BY id DESC').all();
   return c.json({ data: result.results || [], total: result.results?.length || 0 });
 });
 
-router.get('/admin/locations/:id', async (c) => {
+router.get('/admin/locations/:id', adminAuthMiddleware, async (c) => {
   const id = c.req.param('id');
   const location = await c.env.DB.prepare('SELECT * FROM locations WHERE id = ?').bind(id).first();
 
@@ -42,7 +41,7 @@ router.get('/admin/locations/:id', async (c) => {
   return c.json({ data: location });
 });
 
-router.put('/admin/locations/:id', async (c) => {
+router.put('/admin/locations/:id', adminAuthMiddleware, async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
 
@@ -65,14 +64,14 @@ router.put('/admin/locations/:id', async (c) => {
   return c.json({ data: location });
 });
 
-router.delete('/admin/locations/:id', async (c) => {
+router.delete('/admin/locations/:id', adminAuthMiddleware, async (c) => {
   const id = c.req.param('id');
   const result = await c.env.DB.prepare('DELETE FROM locations WHERE id = ?').bind(id).run();
 
   return c.json({ success: (result.meta.changes || 0) > 0 });
 });
 
-router.post('/admin/activities', async (c) => {
+router.post('/admin/activities', adminAuthMiddleware, async (c) => {
   const body = await c.req.json();
   const { title, target_count, location_id, description } = body;
 
@@ -96,12 +95,12 @@ router.post('/admin/activities', async (c) => {
   return c.json({ data: activity });
 });
 
-router.get('/admin/activities', async (c) => {
+router.get('/admin/activities', adminAuthMiddleware, async (c) => {
   const result = await c.env.DB.prepare('SELECT * FROM activities ORDER BY id DESC').all();
   return c.json({ data: result.results || [], total: result.results?.length || 0 });
 });
 
-router.get('/admin/activities/:id', async (c) => {
+router.get('/admin/activities/:id', adminAuthMiddleware, async (c) => {
   const id = c.req.param('id');
   const activity = await c.env.DB.prepare('SELECT * FROM activities WHERE id = ?').bind(id).first();
 
@@ -112,7 +111,7 @@ router.get('/admin/activities/:id', async (c) => {
   return c.json({ data: activity });
 });
 
-router.put('/admin/activities/:id', async (c) => {
+router.put('/admin/activities/:id', adminAuthMiddleware, async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
 
@@ -135,7 +134,7 @@ router.put('/admin/activities/:id', async (c) => {
   return c.json({ data: activity });
 });
 
-router.delete('/admin/activities/:id', async (c) => {
+router.delete('/admin/activities/:id', adminAuthMiddleware, async (c) => {
   const id = c.req.param('id');
   const result = await c.env.DB.prepare('DELETE FROM activities WHERE id = ?').bind(id).run();
 
